@@ -1,0 +1,87 @@
+linters:
+    enable-all: true
+    disable:
+            - depguard
+            - dupl
+            - exhaustruct
+            - goconst
+            - tenv
+            - varnamelen
+            - testpackage
+            - wsl
+            - gochecknoglobals
+
+linters-settings:
+    cyclop:
+        # The maximal code complexity to report.
+        # Default: 10
+        max-complexity: 20
+        # The maximal average package complexity.
+        # If it's higher than 0.0 (float) the check is enabled
+        # Default: 0.0
+        package-average: 20.0
+
+    gocognit:
+        # Minimal code complexity to report.
+        # Default: 30
+        min-complexity: 40
+
+    funlen:
+        # Checks the number of lines in a function.
+        # If lower than 0, disable the check.
+        # Default: 60
+        lines: 80
+        # Checks the number of statements in a function.
+        # If lower than 0, disable the check.
+        # Default: 40
+        statements: 50
+        # Ignore comments when counting lines.
+        # Default false
+        ignore-comments: true
+
+    lll:
+        line-length: 180
+
+    gosimple:
+        checks: ["all", "-S1008"]
+
+    wrapcheck:
+        ignoreSigRegexps:
+            - unix.*?\(
+            - os.*?\(
+            - filepath.*?\(
+            - afero.*?\(
+
+    nestif:
+        # Minimal complexity of if statements to report.
+        # Default: 5
+        min-complexity: 6
+
+    gomoddirectives:
+        # List of allowed `replace` directives.
+        # Default: []
+        replace-allow-list:
+        - github.com/charmbracelet/bubbletea
+
+    paralleltest:
+        ignore-missing-subtests: true
+
+issues:
+    include:
+        - EXC0002
+        - EXC0005
+        - EXC0011
+        - EXC0012
+        - EXC0013
+        - EXC0014
+        - EXC0015
+
+    exclude-rules:
+        # Exclude some linters from running on tests files.
+        - path: _test\.go
+          linters:
+            - tparallel
+            - revive
+            - funlen
+            - ireturn
+            - err113
