@@ -5,14 +5,16 @@
 </div>
 
 <div align="center">
+    <a href="https://github.com/desertwitch/mirrorshutte/tags"><img alt="Tag" src="https://img.shields.io/github/tag/desertwitch/mirrorshuttle.svg"></a>
     <img alt="Go Version" src="https://img.shields.io/badge/Go-%3E%3D%201.24.1-%23007d9c">
+    <a href="https://pkg.go.dev/github.com/desertwitch/mirrorshuttle"><img alt="Go Reference" src="https://pkg.go.dev/badge/github.com/desertwitch/mirrorshuttle.svg"></a>
+    <a href="https://goreportcard.com/report/github.com/desertwitch/mirrorshuttle"><img alt="Go Report" src="https://goreportcard.com/badge/github.com/desertwitch/mirrorshuttle"></a>
+    <a href="./LICENSE"><img alt="License" src="https://img.shields.io/github/license/desertwitch/mirrorshuttle"></a>
+    <br>
     <img alt="Codecov" src="https://codecov.io/gh/desertwitch/mirrorshuttle/graph/badge.svg?token=010RR2BT2K">
     <img alt="Lint" src="https://github.com/desertwitch/mirrorshuttle/actions/workflows/golangci-lint.yml/badge.svg">
     <img alt="Tests" src="https://github.com/desertwitch/mirrorshuttle/actions/workflows/golang-tests.yml/badge.svg">
-    <br />
-    <img alt="Coverage" src="https://github.com/desertwitch/mirrorshuttle/actions/workflows/golang-coverage.yml/badge.svg">
     <img alt="Build" src="https://github.com/desertwitch/mirrorshuttle/actions/workflows/golang-build.yml/badge.svg">
-    <img alt="Build-Debug" src="https://github.com/desertwitch/mirrorshuttle/actions/workflows/golang-build-debug.yml/badge.svg">
 </div>
 <hr>
 
