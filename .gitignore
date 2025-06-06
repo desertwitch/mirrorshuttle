@@ -2,3 +2,5 @@
 /vendor
 /coverage.tmp
 /coverage.txt
+# Added by goreleaser init:
+dist/

@@ -1,0 +1,46 @@
+version: 2
+
+project_name: mirrorshuttle
+
+before:
+  hooks:
+    - make vendor
+    - make lint
+    - make test
+
+builds:
+  - id: mirrorshuttle
+    main: .
+    binary: mirrorshuttle
+    env:
+      - CGO_ENABLED=0
+      - GOFLAGS=-mod=vendor
+    flags:
+      - -trimpath
+    ldflags:
+      - -w
+      - -s
+      - -X main.Version={{.Version}}
+      - -buildid=
+    goos:
+      - linux
+      - darwin
+    goarch:
+    - amd64
+    - arm
+    - arm64
+    - 386
+
+source:
+  enabled: true
+
+archives:
+  - format_overrides:
+    - formats: [ 'binary' ]
+
+signs:
+  - artifacts: checksum
+
+release:
+  footer: Any release files are unattended builds and served without any warranties.
+
