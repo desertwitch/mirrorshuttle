@@ -246,7 +246,7 @@ func main() {
 		os.Exit(exitCode)
 	}()
 
-	fmt.Fprintf(os.Stdout, "MirrorShuttle (%s) - a sandbox to secure location mover.\n", Version)
+	fmt.Fprintf(os.Stdout, "MirrorShuttle (%s) - a sandbox to secure location mover\n", Version)
 	fmt.Fprintf(os.Stdout, "(c) 2025 - desertwitch (Rysz) / GNU General Public License v2\n\n")
 
 	ctx, cancel := context.WithCancel(context.Background())
