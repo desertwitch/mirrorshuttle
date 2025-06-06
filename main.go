@@ -669,17 +669,27 @@ func (prog *program) isEmptyStructure(ctx context.Context, path string) error {
 
 //nolint:nonamedreturns
 func (prog *program) copyAndRemove(src string, dst string) (retErr error) {
+	var inputClosed, outputClosed bool
+
 	in, err := prog.fsys.Open(src)
 	if err != nil {
 		return fmt.Errorf("failed to open src: %w", err)
 	}
-	defer in.Close()
+	defer func() {
+		if !inputClosed {
+			in.Close()
+		}
+	}()
 
 	out, err := prog.fsys.OpenFile(dst, os.O_CREATE|os.O_WRONLY|os.O_EXCL, os.FileMode(fileBasePerm))
 	if err != nil {
 		return fmt.Errorf("failed to open dst: %w", err)
 	}
-	defer out.Close()
+	defer func() {
+		if !outputClosed {
+			out.Close()
+		}
+	}()
 
 	defer func() {
 		if retErr != nil {
@@ -700,6 +710,16 @@ func (prog *program) copyAndRemove(src string, dst string) (retErr error) {
 	if err := out.Sync(); err != nil {
 		return fmt.Errorf("failed during sync: %w", err)
 	}
+
+	if err := in.Close(); err != nil {
+		return fmt.Errorf("failed to close src: %w", err)
+	}
+	inputClosed = true
+
+	if err := out.Close(); err != nil {
+		return fmt.Errorf("failed to close dst: %w", err)
+	}
+	outputClosed = true
 
 	srcChecksum := hex.EncodeToString(srcHasher.Sum(nil))
 	dstChecksum := hex.EncodeToString(dstHasher.Sum(nil))
