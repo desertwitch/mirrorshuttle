@@ -48,7 +48,7 @@ ARGUMENTS:
 
 		In `--mode=init` the `--mirror` folder must not contain any files, as
 		it will be removed and re-created with the latest structure. If any
-		files are detected, the operation will fail with the return code `2`.
+		files are detected, the operation will fail with a specific return code.
 
 	--mirror string
 		Required. Absolute path to the mirror structure. This is where mirrored
@@ -73,6 +73,12 @@ ARGUMENTS:
 
 		Default: false
 
+	--skip-failed
+		Optional. Do not exit on non-fatal failures, skip the failed element
+		and proceed instead; returns with a partial failure return code.
+
+		Default: false
+
 	--dry-run
 		Optional. Perform a preview of operations, without filesystem changes.
 		Useful for verifying behavior before execution.
@@ -92,6 +98,7 @@ YAML Configuration Example:
 	  - /real/path/skip-this
 	  - /real/path/temp
 	direct: true
+	skip-failed: false
 	dry-run: false
 
 Invalid configurations (unknown or malformed fields) are rejected at runtime.
@@ -100,8 +107,9 @@ RETURN CODES:
 
   - `0`: Success
   - `1`: Failure
-  - `2`: Mirror folder contains unmoved files (cannot `--mode=init`)
-  - `3`: Invalid command-line arguments and/or configuration files provided
+  - `2`: Partial Failure (with `--skip-failed`)
+  - `3`: Mirror folder contains unmoved files (cannot `--mode=init`)
+  - `4`: Invalid command-line arguments and/or configuration files provided
 
 IMPLEMENTATION:
 
@@ -180,18 +188,23 @@ import (
 )
 
 const (
-	exitCodeSuccess     = 0
-	exitCodeFailure     = 1
-	exitCodeModeFailure = 2
-	exitCodeArgFailure  = 3
-	dirBasePerm         = 0o777
-	fileBasePerm        = 0o666
-	exitTimeout         = 60 * time.Second
+	exitCodeSuccess        = 0
+	exitCodeFailure        = 1
+	exitCodePartialFailure = 2
+	exitCodeModeFailure    = 3
+	exitCodeArgFailure     = 4
+
+	dirBasePerm  = 0o777
+	fileBasePerm = 0o666
+
+	exitTimeout = 60 * time.Second
 )
 
 var (
 	// Version is the application's version (filled in during compilation).
 	Version string
+
+	partialFailure bool
 
 	errArgConfigMalformed     = errors.New("--config yaml file is malformed")
 	errArgConfigMissing       = errors.New("--config yaml file does not exist")
@@ -222,7 +235,8 @@ type programOptions struct {
 	RealRoot   string     `yaml:"target"`
 	Excludes   excludeArg `yaml:"exclude"`
 	Direct     bool       `yaml:"direct"`
-	DryRun     bool       `yaml:"dry-run"` //nolint:tagliatelle
+	SkipFailed bool       `yaml:"skip-failed"` //nolint:tagliatelle
+	DryRun     bool       `yaml:"dry-run"`     //nolint:tagliatelle
 }
 
 type excludeArg []string
@@ -243,6 +257,9 @@ func main() {
 	var exitCode int
 
 	defer func() {
+		if partialFailure && exitCode == exitCodeSuccess {
+			os.Exit(exitCodePartialFailure)
+		}
 		os.Exit(exitCode)
 	}()
 
@@ -334,7 +351,8 @@ func (prog *program) parseArgs(cliArgs []string) error {
 
 	prog.flags.SetOutput(prog.stderr)
 	prog.flags.Usage = func() {
-		fmt.Fprintf(prog.stderr, "Usage: %q --mode=init|move --mirror=ABSPATH --target=ABSPATH [--exclude=ABSPATH] [--exclude=ABSPATH] [--direct] [--dry-run]\n\n", cliArgs[0])
+		fmt.Fprintf(prog.stderr, "usage: %q --mode=init|move --mirror=ABSPATH --target=ABSPATH\n", cliArgs[0])
+		fmt.Fprintf(prog.stderr, "\t[--exclude=ABSPATH] [--exclude=ABSPATH] [--direct] [--skip-failed] [--dry-run]\n\n")
 		prog.flags.PrintDefaults()
 	}
 
@@ -344,6 +362,7 @@ func (prog *program) parseArgs(cliArgs []string) error {
 	prog.flags.StringVar(&prog.opts.RealRoot, "target", "", "absolute path to the real structure to mirror; files will be moved *to* here")
 	prog.flags.Var(&prog.opts.Excludes, "exclude", "absolute path to exclude; can be repeated multiple times")
 	prog.flags.BoolVar(&prog.opts.Direct, "direct", false, "use atomic rename when possible; fallback to copy and remove if it fails or crosses filesystems")
+	prog.flags.BoolVar(&prog.opts.SkipFailed, "skip-failed", false, "do not exit on non-fatal failures; skip failed element and proceed instead")
 	prog.flags.BoolVar(&prog.opts.DryRun, "dry-run", false, "preview only; no changes are written to disk")
 
 	if err := prog.flags.Parse(cliArgs[1:]); err != nil {
@@ -464,6 +483,17 @@ func (prog *program) run(ctx context.Context) (int, error) {
 	return exitCodeSuccess, nil
 }
 
+func (prog *program) walkError(err error) error {
+	if prog.opts.SkipFailed {
+		partialFailure = true
+		fmt.Fprintf(prog.stderr, "skipped: %v\n", err)
+
+		return nil
+	}
+
+	return err
+}
+
 //nolint:cyclop,funlen
 func (prog *program) createMirrorStructure(ctx context.Context) error {
 	if _, err := prog.fsys.Stat(prog.opts.RealRoot); errors.Is(err, os.ErrNotExist) {
@@ -504,7 +534,7 @@ func (prog *program) createMirrorStructure(ctx context.Context) error {
 				return nil
 			}
 
-			return fmt.Errorf("failed to walk: %q (%w)", path, err)
+			return prog.walkError(fmt.Errorf("failed to walk: %q (%w)", path, err))
 		}
 
 		if !e.IsDir() {
@@ -525,7 +555,7 @@ func (prog *program) createMirrorStructure(ctx context.Context) error {
 
 		relPath, err := filepath.Rel(prog.opts.RealRoot, path)
 		if err != nil {
-			return fmt.Errorf("failed to get relative path: %w", err)
+			return prog.walkError(fmt.Errorf("failed to get relative path: %q (%w)", path, err))
 		}
 
 		mirrorPath := filepath.Join(prog.opts.MirrorRoot, relPath)
@@ -537,7 +567,7 @@ func (prog *program) createMirrorStructure(ctx context.Context) error {
 		}
 
 		if err := prog.fsys.MkdirAll(mirrorPath, dirBasePerm); err != nil {
-			return fmt.Errorf("failed to create: %q (%w)", mirrorPath, err)
+			return prog.walkError(fmt.Errorf("failed to create: %q (%w)", mirrorPath, err))
 		}
 
 		fmt.Fprintf(prog.stdout, "created: %q\n", mirrorPath)
@@ -571,7 +601,7 @@ func (prog *program) moveFiles(ctx context.Context) error {
 				return nil
 			}
 
-			return fmt.Errorf("failed to walk: %q (%w)", path, err)
+			return prog.walkError(fmt.Errorf("failed to walk: %q (%w)", path, err))
 		}
 
 		if isExcluded(path, prog.opts.Excludes) {
@@ -582,7 +612,7 @@ func (prog *program) moveFiles(ctx context.Context) error {
 
 		relPath, err := filepath.Rel(prog.opts.MirrorRoot, path)
 		if err != nil {
-			return fmt.Errorf("failed to get relative path: %w", err)
+			return prog.walkError(fmt.Errorf("failed to get relative path: %q (%w)", path, err))
 		}
 
 		movePath := filepath.Join(prog.opts.RealRoot, relPath)
@@ -602,7 +632,7 @@ func (prog *program) moveFiles(ctx context.Context) error {
 				}
 
 				if err := prog.fsys.MkdirAll(movePath, dirBasePerm); err != nil {
-					return fmt.Errorf("failed to create: %q (%w)", movePath, err)
+					return prog.walkError(fmt.Errorf("failed to create: %q (%w)", movePath, err))
 				}
 
 				fmt.Fprintf(prog.stdout, "created: %q\n", movePath)
@@ -632,7 +662,7 @@ func (prog *program) moveFiles(ctx context.Context) error {
 		}
 
 		if err := prog.copyAndRemove(path, movePath); err != nil {
-			return fmt.Errorf("failed to move: %q -x-> %q (%w)", path, movePath, err)
+			return prog.walkError(fmt.Errorf("failed to move: %q -x-> %q (%w)", path, movePath, err))
 		}
 		fmt.Fprintf(prog.stdout, "moved: %q -> %q (c+r)\n", path, movePath)
 

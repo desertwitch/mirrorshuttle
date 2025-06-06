@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
@@ -152,6 +153,7 @@ func TestRun_ConfigFileWithExcludesAndFlagOverride_Success(t *testing.T) {
 mirror: /mirror-should-not-be-used
 target: /real
 dry-run: true
+skip-failed: false
 exclude:
   - /real/exclude-by-yaml
 `
@@ -169,11 +171,13 @@ exclude:
 		"--config=/config.yaml",
 		"--mirror=/mirror",
 		"--dry-run=false",
+		"--skip-failed=true",              // override YAML
 		"--exclude=/real/exclude-by-flag", // override YAML
 	}
 
 	prog, _ := newProgram(args, fs, &stdout, &stderr, false)
 	require.NotNil(t, prog)
+	require.True(t, prog.opts.SkipFailed)
 
 	exitCode, err := prog.run(t.Context())
 	require.NoError(t, err)
@@ -336,7 +340,7 @@ func TestRun_ValidMoveMode_CtxCancel_Error(t *testing.T) {
 	require.NotContains(t, stderr.String(), context.Canceled.Error())
 }
 
-func TestRun_DryRunMode_Success(t *testing.T) {
+func TestRun_DryRunModeAndSkipFailed_Success(t *testing.T) {
 	t.Parallel()
 
 	fs := setupTestFs()
@@ -344,13 +348,16 @@ func TestRun_DryRunMode_Success(t *testing.T) {
 	require.NoError(t, err)
 
 	var stdout, stderr bytes.Buffer
-	args := []string{"program", "--mode=init", "--mirror=/mirror", "--target=/real", "--dry-run"}
+	args := []string{"program", "--mode=init", "--mirror=/mirror", "--target=/real", "--skip-failed", "--dry-run"}
 
 	prog, _ := newProgram(args, fs, &stdout, &stderr, false)
 	require.NotNil(t, prog)
 
 	exitCode, err := prog.run(t.Context())
 	require.NoError(t, err)
+
+	require.True(t, prog.opts.SkipFailed)              // option should be set
+	require.NotContains(t, stderr.String(), "skipped") // but should not have really failed
 
 	require.Equal(t, exitCodeSuccess, exitCode)
 	require.Contains(t, stdout.String(), "dry-run")
@@ -373,7 +380,7 @@ func TestRun_MultipleExcludes_Success(t *testing.T) {
 	require.NoError(t, err)
 
 	require.Equal(t, exitCodeSuccess, exitCode)
-	require.Contains(t, stderr.String(), "skipped")
+	require.Contains(t, stderr.String(), "skipped:")
 }
 
 func TestRun_PathCleaning_Success(t *testing.T) {
@@ -806,6 +813,46 @@ func TestCopyAndRemove_SourceNotFound_Error(t *testing.T) {
 	prog := setupTestProgram(fs, nil)
 	err := prog.copyAndRemove("/nonexistent/file.txt", "/dst/file.txt")
 	require.ErrorIs(t, err, os.ErrNotExist)
+}
+
+func TestWalkError_SkipFailedTrue_Success(t *testing.T) {
+	t.Parallel()
+
+	fs := setupTestFs()
+	var stderr bytes.Buffer
+
+	opts := &programOptions{SkipFailed: true}
+	prog := setupTestProgram(fs, opts)
+	prog.stderr = &stderr
+
+	partialFailure = false // reset
+
+	err := errors.New("mock error")
+	result := prog.walkError(err)
+
+	require.Nil(t, result)
+	require.True(t, partialFailure)
+	require.Contains(t, stderr.String(), "skipped: mock error")
+}
+
+func TestWalkError_SkipFailedFalse_Error(t *testing.T) {
+	t.Parallel()
+
+	fs := setupTestFs()
+	var stderr bytes.Buffer
+
+	opts := &programOptions{SkipFailed: false}
+	prog := setupTestProgram(fs, opts)
+	prog.stderr = &stderr
+
+	partialFailure = false // reset
+
+	mockErr := errors.New("real error")
+	result := prog.walkError(mockErr)
+
+	require.Equal(t, mockErr, result)
+	require.False(t, partialFailure)
+	require.Empty(t, stderr.String())
 }
 
 func TestCreateMirrorStructure_EmptyMirror_Success(t *testing.T) {

@@ -69,7 +69,7 @@ The tool operates in two distinct operational modes, `init` and `move`:
 
         In `--mode=init` the `--mirror` folder must not contain any files, as
         it will be removed and re-created with the latest structure. If any
-        files are detected, the operation will fail with the return code `2`.
+        files are detected, the operation will fail with a specific return code.
 
     --mirror string
         Required. Absolute path to the mirror structure. This is where mirrored
@@ -94,6 +94,12 @@ The tool operates in two distinct operational modes, `init` and `move`:
 
         Default: false
 
+    --skip-failed
+        Optional. Do not exit on non-fatal failures, skip the failed element
+        and proceed instead; returns with a partial failure return code.
+
+        Default: false
+
     --dry-run
         Optional. Perform a preview of operations, without filesystem changes.
         Useful for verifying behavior before execution.
@@ -113,6 +119,7 @@ The tool operates in two distinct operational modes, `init` and `move`:
       - /real/path/skip-this
       - /real/path/temp
     direct: true
+    skip-failed: false
     dry-run: false
 
 Invalid configurations (unknown or malformed fields) are rejected at runtime.
@@ -121,8 +128,9 @@ Invalid configurations (unknown or malformed fields) are rejected at runtime.
 
   - `0`: Success
   - `1`: Failure
-  - `2`: Mirror folder contains unmoved files (cannot `--mode=init`)
-  - `3`: Invalid command-line arguments and/or configuration files provided
+  - `2`: Partial Failure (with `--skip-failed`)
+  - `3`: Mirror folder contains unmoved files (cannot `--mode=init`)
+  - `4`: Invalid command-line arguments and/or configuration files provided
 
 #### IMPLEMENTATION
 
