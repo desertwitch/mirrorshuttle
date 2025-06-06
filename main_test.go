@@ -530,6 +530,34 @@ func TestNewProgram_MalformedConfigFile_Error(t *testing.T) {
 	require.Contains(t, stderr.String(), errArgConfigMalformed.Error())
 }
 
+func TestNewProgram_MalformedConfigFileField_Error(t *testing.T) {
+	t.Parallel()
+
+	fs := setupTestFs()
+	var stdout, stderr bytes.Buffer
+	args := []string{"program", "--mode=init", "--config=/config.yaml"}
+
+	yaml := `
+myrror: /mirror
+target: /real
+exclude:
+  - /real/exclude1
+  - /real/exclude2
+`
+
+	files := map[string]string{
+		"/config.yaml": yaml,
+	}
+	err := createFiles(fs, files)
+	require.NoError(t, err)
+
+	prog, err := newProgram(args, fs, &stdout, &stderr, true)
+	require.ErrorIs(t, err, errArgConfigMalformed)
+	require.Nil(t, prog)
+
+	require.Contains(t, stderr.String(), errArgConfigMalformed.Error())
+}
+
 func TestNewProgram_InvalidMode_Error(t *testing.T) {
 	t.Parallel()
 

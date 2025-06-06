@@ -60,66 +60,69 @@ The tool operates in two distinct operational modes, `init` and `move`:
 
 #### USAGE
 
-	mirrorshuttle --mode=init|move --mirror=ABSPATH --target=ABSPATH [flags]
+    mirrorshuttle --mode=init|move --mirror=ABSPATH --target=ABSPATH [flags]
 
 #### ARGUMENTS
 
-	--mode string
-		Required. Must be either "init" or "move".
+    --mode string
+        Required. Must be either "init" or "move".
 
-		In `--mode=init` the `--mirror` folder must not contain any files, as
-		it will be deleted and re-created with the latest structure. If any
-		files are detected, the operation will fail with the return code `2`.
+        In `--mode=init` the `--mirror` folder must not contain any files, as
+        it will be removed and re-created with the latest structure. If any
+        files are detected, the operation will fail with the return code `2`.
 
-	--mirror string
-		Required. Absolute path to the mirror structure. This is where mirrored
-		directories will be created and from where files will be moved. It can
-		be a subfolder of `--target`, and will be excluded from being mirrored.
+    --mirror string
+        Required. Absolute path to the mirror structure. This is where mirrored
+        directories will be created and from where files will be moved. It can
+        be a subfolder of `--target`, and will be excluded from being mirrored.
 
-	--target string
-		Required. Absolute path to the real (target) structure. This is the
-		source of truth in init mode and the destination in move mode.
+    --target string
+        Required. Absolute path to the real (target) structure. This is the
+        source of truth in init mode and the destination in move mode.
 
-	--exclude string
-		Optional. Absolute path to exclude from operations. Can be repeated.
-		This prevents specified directories from being mirrored or moved.
+    --exclude string
+        Optional. Absolute path to exclude from operations. Can be repeated.
+        This prevents specified directories from being mirrored or moved.
 
-	--direct
-		Optional. Attempt atomic rename operations. If this fails (e.g., across
-		filesystems), fallback to copy and remove.
+    --direct
+        Optional. Attempt atomic rename operations. If this fails (e.g., across
+        filesystems), fallback to copy and remove.
 
-		In union filesystems, this may result in allocation or disk-relocation
-		methods being circumvented and files staying on the same disk despite
-		that possibly not being wanted. Disable this setting for such use cases.
+        In union filesystems, this may result in allocation or disk-relocation
+        methods being circumvented and files staying on the same disk despite
+        that possibly not being wanted. Disable this setting for such use cases.
 
-		Default: false
+        Default: false
 
-	--dry-run
-		Optional. Perform a preview of operations, without filesystem changes.
-		Useful for verifying behavior before execution.
+    --dry-run
+        Optional. Perform a preview of operations, without filesystem changes.
+        Useful for verifying behavior before execution.
 
-		Default: false
+        Default: false
 
-	--config string
-		Path to a YAML configuration file specifying the same field names.
-		CLI flags always override any values set in the configuration file.
-		Exception: `--mode` argument must always be specified via command-line.
+    --config string
+        Path to a YAML configuration file specifying the same field names.
+        CLI flags always override any values set in the configuration file.
+        Exception: `--mode` argument must always be specified via command-line.
 
 #### YAML CONFIGURATION EXAMPLE
 
-	mirror: /mirror/path
-	target: /real/path
-	exclude:
-	  - /real/path/skip-this
-	  - /real/path/temp
-	direct: true
-	dry-run: false
+    mirror: /mirror/path
+    target: /real/path
+    exclude:
+      - /real/path/skip-this
+      - /real/path/temp
+    direct: true
+    dry-run: false
+
+Invalid configurations (unknown or malformed fields) are rejected at runtime.
 
 #### RETURN CODES
 
   - `0`: Success
   - `1`: Failure
   - `2`: Mirror folder contains unmoved files (cannot `--mode=init`)
+  - `3`: Invalid command-line arguments and/or configuration files provided
 
 #### IMPLEMENTATION
 
@@ -132,23 +135,23 @@ The user wants to prepare data within the `/mnt/user/incoming` structure only,
 but also organize where it will end up in the protected archival structures
 eventually, so they run the following initial command:
 
-	mirrorshuttle --mode=init --mirror=/mnt/user/incoming --target=/mnt/user
+    mirrorshuttle --mode=init --mirror=/mnt/user/incoming --target=/mnt/user
 
 The above command mirrors the `/mnt/user` structure into their staging location.
 Content is added to the mirror structure daily, and so a periodic cron job runs:
 
-	mirrorshuttle --mode=move --mirror=/mnt/user/incoming --target=/mnt/user
+    mirrorshuttle --mode=move --mirror=/mnt/user/incoming --target=/mnt/user
 
 Whenever the cron job runs, any new content is moved to the respective locations.
 The user does an occasional cleanup within the archival site directly and hence
 runs the initialization command (again) after finishing their cleanup:
 
-	mirrorshuttle --mode=init --mirror=/mnt/user/incoming --target=/mnt/user
+    mirrorshuttle --mode=init --mirror=/mnt/user/incoming --target=/mnt/user
 
 They might even run this command as part of their cron job, after the respective
 `--mode=move` operation, to ensure that their mirror structure is always up to
-date. They understand that if folders were deleted in the `--target` structure,
-and `--mode=init` was not run again before the next `--mode=move`, any deleted
+date. They understand that if folders were removed in the `--target` structure,
+and `--mode=init` was not run again before the next `--mode=move`, any removed
 folders would be re-created. This is why `--target` locations should remain
 stable and not be modified without a follow-up re-running of `--mode=init`.
 

@@ -47,7 +47,7 @@ ARGUMENTS:
 		Required. Must be either "init" or "move".
 
 		In `--mode=init` the `--mirror` folder must not contain any files, as
-		it will be deleted and re-created with the latest structure. If any
+		it will be removed and re-created with the latest structure. If any
 		files are detected, the operation will fail with the return code `2`.
 
 	--mirror string
@@ -94,11 +94,14 @@ YAML Configuration Example:
 	direct: true
 	dry-run: false
 
+Invalid configurations (unknown or malformed fields) are rejected at runtime.
+
 RETURN CODES:
 
   - `0`: Success
   - `1`: Failure
   - `2`: Mirror folder contains unmoved files (cannot `--mode=init`)
+  - `3`: Invalid command-line arguments and/or configuration files provided
 
 IMPLEMENTATION:
 
@@ -126,8 +129,8 @@ runs the initialization command (again) after finishing their cleanup:
 
 They might even run this command as part of their cron job, after the respective
 `--mode=move` operation, to ensure that their mirror structure is always up to
-date. They understand that if folders were deleted in the `--target` structure,
-and `--mode=init` was not run again before the next `--mode=move`, any deleted
+date. They understand that if folders were removed in the `--target` structure,
+and `--mode=init` was not run again before the next `--mode=move`, any removed
 folders would be re-created. This is why `--target` locations should remain
 stable and not be modified without a follow-up re-running of `--mode=init`.
 
@@ -180,6 +183,7 @@ const (
 	exitCodeSuccess     = 0
 	exitCodeFailure     = 1
 	exitCodeModeFailure = 2
+	exitCodeArgFailure  = 3
 	dirBasePerm         = 0o777
 	fileBasePerm        = 0o666
 	exitTimeout         = 60 * time.Second
@@ -189,8 +193,8 @@ var (
 	// Version is the application's version (filled in during compilation).
 	Version string
 
-	errArgConfigMalformed     = errors.New("--config file is malformed (not YAML?)")
-	errArgConfigMissing       = errors.New("--config file does not exist")
+	errArgConfigMalformed     = errors.New("--config yaml file is malformed")
+	errArgConfigMissing       = errors.New("--config yaml file does not exist")
 	errArgExcludePathNotAbs   = errors.New("--exclude paths must all be absolute")
 	errArgMirrorTargetNotAbs  = errors.New("--mirror and --target must both be absolute paths")
 	errArgMirrorTargetSame    = errors.New("--mirror and --target cannot be the same")
@@ -255,7 +259,7 @@ func main() {
 
 	prog, err := newProgram(os.Args, afero.NewOsFs(), os.Stdout, os.Stderr, false)
 	if prog == nil || err != nil {
-		exitCode = exitCodeFailure
+		exitCode = exitCodeArgFailure
 
 		return
 	}
@@ -339,7 +343,7 @@ func (prog *program) parseArgs(cliArgs []string) error {
 	prog.flags.StringVar(&prog.opts.MirrorRoot, "mirror", "", "absolute path to the mirror structure to create; files will be moved *from* here")
 	prog.flags.StringVar(&prog.opts.RealRoot, "target", "", "absolute path to the real structure to mirror; files will be moved *to* here")
 	prog.flags.Var(&prog.opts.Excludes, "exclude", "absolute path to exclude; can be repeated multiple times")
-	prog.flags.BoolVar(&prog.opts.Direct, "direct", false, "use atomic rename when possible; fallback to copy and delete if it fails or crosses filesystems")
+	prog.flags.BoolVar(&prog.opts.Direct, "direct", false, "use atomic rename when possible; fallback to copy and remove if it fails or crosses filesystems")
 	prog.flags.BoolVar(&prog.opts.DryRun, "dry-run", false, "preview only; no changes are written to disk")
 
 	if err := prog.flags.Parse(cliArgs[1:]); err != nil {
@@ -358,7 +362,10 @@ func (prog *program) parseArgs(cliArgs []string) error {
 		}
 		defer f.Close()
 
-		if err := yaml.NewDecoder(f).Decode(&yamlOpts); err != nil {
+		dec := yaml.NewDecoder(f)
+		dec.KnownFields(true)
+
+		if err := dec.Decode(&yamlOpts); err != nil {
 			return fmt.Errorf("%w: %w", errArgConfigMalformed, err)
 		}
 	}
@@ -467,7 +474,7 @@ func (prog *program) createMirrorStructure(ctx context.Context) error {
 		if err := prog.isEmptyStructure(ctx, prog.opts.MirrorRoot); err != nil && !errors.Is(err, os.ErrNotExist) {
 			return fmt.Errorf("failed ensuring emptiness: %q (%w)", prog.opts.MirrorRoot, err)
 		} else if err == nil {
-			fmt.Fprintf(prog.stdout, "dry-run: delete mirror: %q\n", prog.opts.MirrorRoot)
+			fmt.Fprintf(prog.stdout, "dry-run: remove mirror: %q\n", prog.opts.MirrorRoot)
 		}
 		fmt.Fprintf(prog.stdout, "dry-run: create mirror: %q\n", prog.opts.MirrorRoot)
 	} else {
@@ -475,12 +482,12 @@ func (prog *program) createMirrorStructure(ctx context.Context) error {
 			return fmt.Errorf("failed ensuring emptiness: %q (%w)", prog.opts.MirrorRoot, err)
 		} else if err == nil {
 			if err := prog.fsys.RemoveAll(prog.opts.MirrorRoot); err != nil {
-				return fmt.Errorf("failed to clean: %q (%w)", prog.opts.MirrorRoot, err)
+				return fmt.Errorf("failed to remove mirror: %q (%w)", prog.opts.MirrorRoot, err)
 			}
-			fmt.Fprintf(prog.stdout, "deleted mirror: %q\n", prog.opts.MirrorRoot)
+			fmt.Fprintf(prog.stdout, "removed mirror: %q\n", prog.opts.MirrorRoot)
 		}
 		if err := prog.fsys.MkdirAll(prog.opts.MirrorRoot, dirBasePerm); err != nil {
-			return fmt.Errorf("failed to create: %q (%w)", prog.opts.MirrorRoot, err)
+			return fmt.Errorf("failed to create mirror: %q (%w)", prog.opts.MirrorRoot, err)
 		}
 		fmt.Fprintf(prog.stdout, "created mirror: %q\n", prog.opts.MirrorRoot)
 	}
@@ -693,7 +700,12 @@ func (prog *program) copyAndRemove(src string, dst string) (retErr error) {
 
 	defer func() {
 		if retErr != nil {
-			_ = prog.fsys.Remove(dst)
+			if _, err := prog.fsys.Stat(src); err == nil {
+				_ = prog.fsys.Remove(dst)
+			} else {
+				fmt.Fprintf(prog.stderr, "cleanup: not found: %q\n", src)
+				fmt.Fprintf(prog.stderr, "cleanup: not removing: %q\n", dst)
+			}
 		}
 	}()
 
@@ -728,8 +740,12 @@ func (prog *program) copyAndRemove(src string, dst string) (retErr error) {
 		return fmt.Errorf("%w: %q (%s) != %q (%s)", errHashMismatch, src, srcChecksum, dst, dstChecksum)
 	}
 
+	if _, err := prog.fsys.Stat(dst); err != nil {
+		return fmt.Errorf("dst does not exist (after move): %w", err)
+	}
+
 	if err := prog.fsys.Remove(src); err != nil {
-		return fmt.Errorf("failed to remove source: %w", err)
+		return fmt.Errorf("failed to remove src (after move): %w", err)
 	}
 
 	return nil
