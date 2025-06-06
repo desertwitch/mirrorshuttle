@@ -830,7 +830,7 @@ func TestWalkError_SkipFailedTrue_Success(t *testing.T) {
 	err := errors.New("mock error")
 	result := prog.walkError(err)
 
-	require.Nil(t, result)
+	require.NoError(t, result)
 	require.True(t, partialFailure)
 	require.Contains(t, stderr.String(), "skipped: mock error")
 }
