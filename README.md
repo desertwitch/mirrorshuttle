@@ -6,15 +6,15 @@
 
 <div align="center">
     <a href="https://github.com/desertwitch/mirrorshuttle/releases"><img alt="Release" src="https://img.shields.io/github/release/desertwitch/mirrorshuttle.svg"></a>
-    <img alt="Go Version" src="https://img.shields.io/badge/Go-%3E%3D%201.24.1-%23007d9c">
+    <a href="https://go.dev/"><img alt="Go Version" src="https://img.shields.io/badge/Go-%3E%3D%201.24.1-%23007d9c"></a>
     <a href="https://pkg.go.dev/github.com/desertwitch/mirrorshuttle"><img alt="Go Reference" src="https://pkg.go.dev/badge/github.com/desertwitch/mirrorshuttle.svg"></a>
     <a href="https://goreportcard.com/report/github.com/desertwitch/mirrorshuttle"><img alt="Go Report" src="https://goreportcard.com/badge/github.com/desertwitch/mirrorshuttle"></a>
     <a href="./LICENSE"><img alt="License" src="https://img.shields.io/github/license/desertwitch/mirrorshuttle"></a>
     <br>
-    <img alt="Codecov" src="https://codecov.io/gh/desertwitch/mirrorshuttle/graph/badge.svg?token=010RR2BT2K">
-    <img alt="Lint" src="https://github.com/desertwitch/mirrorshuttle/actions/workflows/golangci-lint.yml/badge.svg">
-    <img alt="Tests" src="https://github.com/desertwitch/mirrorshuttle/actions/workflows/golang-tests.yml/badge.svg">
-    <img alt="Build" src="https://github.com/desertwitch/mirrorshuttle/actions/workflows/golang-build.yml/badge.svg">
+    <a href="https://app.codecov.io/gh/desertwitch/mirrorshuttle"><img alt="Codecov" src="https://codecov.io/gh/desertwitch/mirrorshuttle/graph/badge.svg?token=010RR2BT2K"></a>
+    <a href="https://github.com/desertwitch/mirrorshuttle/actions/workflows/golangci-lint.yml"><img alt="Lint" src="https://github.com/desertwitch/mirrorshuttle/actions/workflows/golangci-lint.yml/badge.svg"></a>
+    <a href="https://github.com/desertwitch/mirrorshuttle/actions/workflows/golang-tests.yml"><img alt="Tests" src="https://github.com/desertwitch/mirrorshuttle/actions/workflows/golang-tests.yml/badge.svg"></a>
+    <a href="https://github.com/desertwitch/mirrorshuttle/actions/workflows/golang-build.yml"><img alt="Build" src="https://github.com/desertwitch/mirrorshuttle/actions/workflows/golang-build.yml/badge.svg"></a>
 </div>
 <hr>
 
