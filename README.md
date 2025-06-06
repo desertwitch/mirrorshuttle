@@ -19,7 +19,8 @@
 </div>
 <hr>
 
-#### OVERVIEW:
+#### OVERVIEW
+
 MirrorShuttle is a utility to move from sandbox to secure storage locations.
 
 mirrorshuttle provides a command-line interface for replicating the full
@@ -48,7 +49,7 @@ The tool operates in two distinct operational modes, `init` and `move`:
     efficiency. If a direct rename isn’t possible (e.g., across filesystems), it
     falls back to a safe copy-and-remove strategy.
 
-#### FEATURES:
+#### FEATURES
 
   - Clean CLI and YAML configuration support.
   - Optional dry-run mode for safe previews.
@@ -58,11 +59,11 @@ The tool operates in two distinct operational modes, `init` and `move`:
   - Exclude rules for omitting specific absolute paths from either mode.
   - Fails early on misconfiguration or unsafe directory states.
 
-#### USAGE:
+#### USAGE
 
 	mirrorshuttle --mode=init|move --mirror=ABSPATH --target=ABSPATH [flags]
 
-#### ARGUMENTS:
+#### ARGUMENTS
 
 	--mode string
 		Required. Must be either "init" or "move".
@@ -105,7 +106,7 @@ The tool operates in two distinct operational modes, `init` and `move`:
 		CLI flags always override any values set in the configuration file.
 		Exception: `--mode` argument must always be specified via command-line.
 
-#### YAML Configuration Example:
+#### YAML CONFIGURATION EXAMPLE
 
 	mirror: /mirror/path
 	target: /real/path
@@ -115,13 +116,13 @@ The tool operates in two distinct operational modes, `init` and `move`:
 	direct: true
 	dry-run: false
 
-#### RETURN CODES:
+#### RETURN CODES
 
   - `0`: Success
   - `1`: Failure
   - `2`: Mirror folder contains unmoved files (cannot `--mode=init`)
 
-#### IMPLEMENTATION:
+#### IMPLEMENTATION
 
 An example implementation would be e.g., an Unraid system that has all user
 "shares" inside `/mnt/user`, but only `/mnt/user/incoming` as writable from the
@@ -152,7 +153,7 @@ and `--mode=init` was not run again before the next `--mode=move`, any deleted
 folders would be re-created. This is why `--target` locations should remain
 stable and not be modified without a follow-up re-running of `--mode=init`.
 
-#### DESIGN CHOICES AND LIMITATIONS:
+#### DESIGN CHOICES AND LIMITATIONS
 
 mirrorshuttle assumes the `--target` location to be relatively static, in which
 case `--mode=init` calls should not need to be frequent (if at all). If the
