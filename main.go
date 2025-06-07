@@ -8,7 +8,7 @@ Later, mirrorshuttle moves new content back into the original, secured
 structure, while preserving the directory structure as organized in the staging
 area. This workflow allows content to be prepared in a public writable
 environment, then securely promoted to its protected final destination, without
-ever exposing that destination itself to public write access.
+ever exposing that destination itself to public write access (and ransomware).
 
 The tool operates in two distinct operational modes, `init` and `move`:
 
