@@ -128,7 +128,7 @@ dry-run: true
 	exitCode, err := prog.run(t.Context())
 	require.NoError(t, err)
 	require.Equal(t, exitCodeSuccess, exitCode)
-	require.NotContains(t, stdout.String(), "dry-run")
+	require.NotContains(t, stdout.String(), "running in dry mode")
 
 	_, err = fs.Stat("/badmirror")
 	require.ErrorIs(t, err, os.ErrNotExist)
@@ -360,7 +360,7 @@ func TestRun_DryRunModeAndSkipFailed_Success(t *testing.T) {
 	require.NotContains(t, stderr.String(), "skipped") // but should not have really failed
 
 	require.Equal(t, exitCodeSuccess, exitCode)
-	require.Contains(t, stdout.String(), "dry-run")
+	require.Contains(t, stdout.String(), "running in dry mode")
 }
 
 func TestRun_MultipleExcludes_Success(t *testing.T) {
@@ -815,9 +815,8 @@ func TestCopyAndRemove_SourceNotFound_Error(t *testing.T) {
 	require.ErrorIs(t, err, os.ErrNotExist)
 }
 
-func TestWalkError_SkipFailedTrue_Success(t *testing.T) {
-	t.Parallel()
-
+func TestWalkError_SkipFailedTrue_Success(t *testing.T) { //nolint:paralleltest
+	// Do not run this test in parallel due to global partialFailure.
 	fs := setupTestFs()
 	var stderr bytes.Buffer
 
@@ -835,9 +834,8 @@ func TestWalkError_SkipFailedTrue_Success(t *testing.T) {
 	require.Contains(t, stderr.String(), "skipped: mock error")
 }
 
-func TestWalkError_SkipFailedFalse_Error(t *testing.T) {
-	t.Parallel()
-
+func TestWalkError_SkipFailedFalse_Error(t *testing.T) { //nolint:paralleltest
+	// Do not run this test in parallel due to global partialFailure.
 	fs := setupTestFs()
 	var stderr bytes.Buffer
 

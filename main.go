@@ -217,9 +217,9 @@ var (
 	errArgConfigMalformed     = errors.New("--config yaml file is malformed")
 	errArgConfigMissing       = errors.New("--config yaml file does not exist")
 	errArgExcludePathNotAbs   = errors.New("--exclude paths must all be absolute")
-	errArgMirrorTargetNotAbs  = errors.New("--mirror and --target must both be absolute paths")
-	errArgMirrorTargetSame    = errors.New("--mirror and --target cannot be the same")
-	errArgMissingMirrorTarget = errors.New("--mirror and --target must both be set")
+	errArgMirrorTargetNotAbs  = errors.New("--mirror and --target paths must all be absolute")
+	errArgMirrorTargetSame    = errors.New("--mirror and --target paths cannot be the same")
+	errArgMissingMirrorTarget = errors.New("--mirror and --target paths must both be set")
 	errArgModeMismatch        = errors.New("--mode must either be 'init' or 'move'")
 
 	errHashMismatch   = errors.New("in-memory hash mismatch during I/O")
@@ -329,17 +329,24 @@ func newProgram(cliArgs []string, fsys afero.Fs, stdout io.Writer, stderr io.Wri
 	}
 
 	if err := prog.parseArgs(cliArgs); err != nil {
-		fmt.Fprintf(prog.stderr, "fatal: failed to parse arguments: %v\n\n", err)
+		fmt.Fprintf(prog.stderr, "fatal: failed to parse configuration: %v\n\n", err)
 		prog.flags.Usage()
 
-		return nil, fmt.Errorf("failed to parse arguments: %w", err)
+		return nil, fmt.Errorf("failed to parse configuration: %w", err)
 	}
 
 	if err := prog.validateOpts(); err != nil {
-		fmt.Fprintf(prog.stderr, "fatal: failed to validate arguments: %v\n\n", err)
+		fmt.Fprintf(prog.stderr, "fatal: failed to validate configuration: %v\n\n", err)
 		prog.flags.Usage()
 
-		return nil, fmt.Errorf("failed to validate arguments: %w", err)
+		return nil, fmt.Errorf("failed to validate configuration: %w", err)
+	}
+
+	if err := prog.printOpts(); err != nil {
+		fmt.Fprintf(prog.stderr, "fatal: failed to print configuration: %v\n\n", err)
+		prog.flags.Usage()
+
+		return nil, fmt.Errorf("failed to print configuration: %w", err)
 	}
 
 	return prog, nil
@@ -411,6 +418,9 @@ func (prog *program) parseArgs(cliArgs []string) error {
 	if !setFlags["direct"] {
 		prog.opts.Direct = yamlOpts.Direct
 	}
+	if !setFlags["skip-failed"] {
+		prog.opts.SkipFailed = yamlOpts.SkipFailed
+	}
 	if !setFlags["dry-run"] {
 		prog.opts.DryRun = yamlOpts.DryRun
 	}
@@ -419,8 +429,6 @@ func (prog *program) parseArgs(cliArgs []string) error {
 }
 
 func (prog *program) validateOpts() error {
-	prog.opts.Mode = strings.ToLower(prog.opts.Mode)
-
 	if prog.opts.Mode != "init" && prog.opts.Mode != "move" {
 		return errArgModeMismatch
 	}
@@ -451,9 +459,27 @@ func (prog *program) validateOpts() error {
 	return nil
 }
 
+func (prog *program) printOpts() error {
+	out, err := yaml.Marshal(prog.opts)
+	if err != nil {
+		return fmt.Errorf("failed printing configuration: %w", err)
+	}
+
+	fmt.Fprintln(prog.stdout, "effective configuration:")
+
+	lines := strings.SplitSeq(string(out), "\n")
+	for line := range lines {
+		if line != "" {
+			fmt.Fprintf(prog.stdout, "\t%s\n", line)
+		}
+	}
+
+	return nil
+}
+
 func (prog *program) run(ctx context.Context) (int, error) {
 	if prog.opts.DryRun {
-		fmt.Fprintln(prog.stdout, "warning: running in dry-run mode (no changes will be made)")
+		fmt.Fprintln(prog.stdout, "warning: running in dry mode (no changes will be made)")
 	}
 
 	switch prog.opts.Mode {
@@ -512,9 +538,9 @@ func (prog *program) createMirrorStructure(ctx context.Context) error {
 		if err := prog.isEmptyStructure(ctx, prog.opts.MirrorRoot); err != nil && !errors.Is(err, os.ErrNotExist) {
 			return fmt.Errorf("failed ensuring emptiness: %q (%w)", prog.opts.MirrorRoot, err)
 		} else if err == nil {
-			fmt.Fprintf(prog.stdout, "dry-run: remove mirror: %q\n", prog.opts.MirrorRoot)
+			fmt.Fprintf(prog.stdout, "dry: remove: %q\n", prog.opts.MirrorRoot)
 		}
-		fmt.Fprintf(prog.stdout, "dry-run: create mirror: %q\n", prog.opts.MirrorRoot)
+		fmt.Fprintf(prog.stdout, "dry: create: %q\n", prog.opts.MirrorRoot)
 	} else {
 		if err := prog.isEmptyStructure(ctx, prog.opts.MirrorRoot); err != nil && !errors.Is(err, os.ErrNotExist) {
 			return fmt.Errorf("failed ensuring emptiness: %q (%w)", prog.opts.MirrorRoot, err)
@@ -522,12 +548,12 @@ func (prog *program) createMirrorStructure(ctx context.Context) error {
 			if err := prog.fsys.RemoveAll(prog.opts.MirrorRoot); err != nil {
 				return fmt.Errorf("failed to remove mirror: %q (%w)", prog.opts.MirrorRoot, err)
 			}
-			fmt.Fprintf(prog.stdout, "removed mirror: %q\n", prog.opts.MirrorRoot)
+			fmt.Fprintf(prog.stdout, "removed: %q\n", prog.opts.MirrorRoot)
 		}
 		if err := prog.fsys.MkdirAll(prog.opts.MirrorRoot, dirBasePerm); err != nil {
 			return fmt.Errorf("failed to create mirror: %q (%w)", prog.opts.MirrorRoot, err)
 		}
-		fmt.Fprintf(prog.stdout, "created mirror: %q\n", prog.opts.MirrorRoot)
+		fmt.Fprintf(prog.stdout, "created: %q\n", prog.opts.MirrorRoot)
 	}
 
 	if err := afero.Walk(prog.fsys, prog.opts.RealRoot, func(path string, e os.FileInfo, err error) error {
@@ -569,7 +595,7 @@ func (prog *program) createMirrorStructure(ctx context.Context) error {
 		mirrorPath := filepath.Join(prog.opts.MirrorRoot, relPath)
 
 		if prog.opts.DryRun {
-			fmt.Fprintf(prog.stdout, "dry-run: create: %q\n", mirrorPath)
+			fmt.Fprintf(prog.stdout, "dry: create: %q\n", mirrorPath)
 
 			return nil
 		}
@@ -634,7 +660,7 @@ func (prog *program) moveFiles(ctx context.Context) error {
 		if e.IsDir() {
 			if _, err := prog.fsys.Stat(movePath); errors.Is(err, os.ErrNotExist) {
 				if prog.opts.DryRun {
-					fmt.Fprintf(prog.stdout, "dry-run: create: %q\n", movePath)
+					fmt.Fprintf(prog.stdout, "dry: create: %q\n", movePath)
 
 					return nil
 				}
@@ -656,7 +682,7 @@ func (prog *program) moveFiles(ctx context.Context) error {
 		}
 
 		if prog.opts.DryRun {
-			fmt.Fprintf(prog.stdout, "dry-run: move: %q -> %q\n", path, movePath)
+			fmt.Fprintf(prog.stdout, "dry: move: %q -> %q\n", path, movePath)
 
 			return nil
 		}
