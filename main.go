@@ -732,7 +732,7 @@ func (prog *program) isEmptyStructure(ctx context.Context, path string) (bool, e
 		}
 
 		if err != nil {
-			return fmt.Errorf("failed to walk: %w", err)
+			return fmt.Errorf("failed to walk: %q (%w)", subpath, err)
 		}
 
 		if !e.IsDir() {
@@ -758,7 +758,7 @@ func (prog *program) copyAndRemove(src string, dst string) (retErr error) {
 
 	in, err := prog.fsys.Open(src)
 	if err != nil {
-		return fmt.Errorf("failed to open src: %w", err)
+		return fmt.Errorf("failed to open src: %q (%w)", src, err)
 	}
 	defer func() {
 		if !inputClosed {
@@ -768,7 +768,7 @@ func (prog *program) copyAndRemove(src string, dst string) (retErr error) {
 
 	out, err := prog.fsys.OpenFile(dst, os.O_CREATE|os.O_WRONLY|os.O_EXCL, os.FileMode(fileBasePerm))
 	if err != nil {
-		return fmt.Errorf("failed to open dst: %w", err)
+		return fmt.Errorf("failed to open dst: %q (%w)", dst, err)
 	}
 	defer func() {
 		if !outputClosed {
@@ -806,12 +806,12 @@ func (prog *program) copyAndRemove(src string, dst string) (retErr error) {
 	}
 
 	if err := in.Close(); err != nil {
-		return fmt.Errorf("failed to close src: %w", err)
+		return fmt.Errorf("failed to close src: %q (%w)", src, err)
 	}
 	inputClosed = true
 
 	if err := out.Close(); err != nil {
-		return fmt.Errorf("failed to close dst: %w", err)
+		return fmt.Errorf("failed to close dst: %q (%w)", dst, err)
 	}
 	outputClosed = true
 
@@ -823,13 +823,13 @@ func (prog *program) copyAndRemove(src string, dst string) (retErr error) {
 	}
 
 	if _, err := prog.fsys.Stat(dst); errors.Is(err, os.ErrNotExist) {
-		return fmt.Errorf("dst does not exist (after move): %w", err)
+		return fmt.Errorf("dst does not exist (after move): %q (%w)", dst, err)
 	} else if err != nil {
 		return fmt.Errorf("failed to stat: %q (%w)", dst, err)
 	}
 
 	if err := prog.fsys.Remove(src); err != nil {
-		return fmt.Errorf("failed to remove src (after move): %w", err)
+		return fmt.Errorf("failed to remove src (after move): %q (%w)", src, err)
 	}
 
 	return nil
