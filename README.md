@@ -20,9 +20,6 @@
 
 #### OVERVIEW
 
-MirrorShuttle is a utility to mirror a target, stage with structure, and move
-with integrity. It lets you keep your structure, but ditch the risk.
-
 mirrorshuttle provides a command-line interface for replicating the full
 directory structure of a target location into a sandbox or staging area. Content
 can be added to this mirror structure, without exposing the secure target, but
@@ -30,9 +27,9 @@ at the benefit of having its entire directory structure available for organizing
 
 Later, mirrorshuttle moves new content back into the original, secured
 structure, while preserving the directory structure as organized in the staging
-area. This workflow allows content to be prepared in a public environment, then
-securely promoted to its protected final destination, without ever exposing that
-destination itself to public access.
+area. This workflow allows content to be prepared in a public writable
+environment, then securely promoted to its protected final destination, without
+ever exposing that destination itself to public write access.
 
 The tool operates in two distinct operational modes, `init` and `move`:
 
@@ -135,10 +132,10 @@ Invalid configurations (unknown or malformed fields) are rejected at runtime.
 
 #### IMPLEMENTATION
 
-An example implementation would be e.g., an Unraid system that has all user
-"shares" inside `/mnt/user`, but only `/mnt/user/incoming` as writable from the
-outside world (e.g., via Samba). The other subfolders of `/mnt/user` are not
-shared to the outside world and are themselves data archives that do not change.
+An example implementation could be a RAID system that has all user "shares"
+inside `/mnt/user`, but only `/mnt/user/incoming` writable from the outside
+world (e.g., via Samba). The other folders of `/mnt/user` are read-only to the
+outside world and are themselves readable data archives that do not change.
 
 The user wants to prepare data within the `/mnt/user/incoming` structure only,
 but also organize where it will end up in the protected archival structures
