@@ -369,7 +369,7 @@ func (prog *program) parseArgs(cliArgs []string) error {
 	}
 
 	prog.flags.StringVar(&prog.opts.Mode, "mode", "", "operation mode: 'init' or 'move'; always needed")
-	prog.flags.StringVar(&yamlFile, "config", "", "absolute path to a yaml configuration file; used with the specified mode")
+	prog.flags.StringVar(&yamlFile, "config", "", "path to a yaml configuration file; used with the specified mode")
 	prog.flags.StringVar(&prog.opts.MirrorRoot, "mirror", "", "absolute path to the mirror structure to create; files will be moved *from* here")
 	prog.flags.StringVar(&prog.opts.RealRoot, "target", "", "absolute path to the real structure to mirror; files will be moved *to* here")
 	prog.flags.Var(&prog.opts.Excludes, "exclude", "absolute path to exclude; can be repeated multiple times")
