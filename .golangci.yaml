@@ -7,6 +7,7 @@ linters:
             - goconst
             - tenv
             - varnamelen
+            - tagliatelle
             - testpackage
             - wsl
             - gochecknoglobals
@@ -15,26 +16,26 @@ linters-settings:
     cyclop:
         # The maximal code complexity to report.
         # Default: 10
-        max-complexity: 20
+        max-complexity: 25
         # The maximal average package complexity.
         # If it's higher than 0.0 (float) the check is enabled
         # Default: 0.0
-        package-average: 20.0
+        package-average: 25.0
 
     gocognit:
         # Minimal code complexity to report.
         # Default: 30
-        min-complexity: 40
+        min-complexity: 50
 
     funlen:
         # Checks the number of lines in a function.
         # If lower than 0, disable the check.
         # Default: 60
-        lines: 80
+        lines: 100
         # Checks the number of statements in a function.
         # If lower than 0, disable the check.
         # Default: 40
-        statements: 50
+        statements: 80
         # Ignore comments when counting lines.
         # Default false
         ignore-comments: true
@@ -55,7 +56,7 @@ linters-settings:
     nestif:
         # Minimal complexity of if statements to report.
         # Default: 5
-        min-complexity: 6
+        min-complexity: 10
 
     gomoddirectives:
         # List of allowed `replace` directives.

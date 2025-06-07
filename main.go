@@ -243,8 +243,8 @@ type programOptions struct {
 	RealRoot   string     `yaml:"target"`
 	Excludes   excludeArg `yaml:"exclude"`
 	Direct     bool       `yaml:"direct"`
-	SkipFailed bool       `yaml:"skip-failed"` //nolint:tagliatelle
-	DryRun     bool       `yaml:"dry-run"`     //nolint:tagliatelle
+	SkipFailed bool       `yaml:"skip-failed"`
+	DryRun     bool       `yaml:"dry-run"`
 }
 
 type excludeArg []string
@@ -465,7 +465,7 @@ func (prog *program) printOpts() error {
 		return fmt.Errorf("failed printing configuration: %w", err)
 	}
 
-	fmt.Fprintln(prog.stdout, "effective configuration:")
+	fmt.Fprintf(prog.stdout, "configuration for '--mode=%s':\n", prog.opts.Mode)
 
 	lines := strings.SplitSeq(string(out), "\n")
 	for line := range lines {
@@ -473,6 +473,8 @@ func (prog *program) printOpts() error {
 			fmt.Fprintf(prog.stdout, "\t%s\n", line)
 		}
 	}
+
+	fmt.Fprintln(prog.stdout)
 
 	return nil
 }
@@ -512,7 +514,7 @@ func (prog *program) run(ctx context.Context) (int, error) {
 		}
 	}
 
-	fmt.Fprintln(prog.stdout, "success: all done; exiting...")
+	fmt.Fprintln(prog.stdout, "success: mode has completed; exiting...")
 
 	return exitCodeSuccess, nil
 }
@@ -528,30 +530,41 @@ func (prog *program) walkError(err error) error {
 	return err
 }
 
-//nolint:cyclop,funlen
 func (prog *program) createMirrorStructure(ctx context.Context) error {
 	if _, err := prog.fsys.Stat(prog.opts.RealRoot); errors.Is(err, os.ErrNotExist) {
 		return fmt.Errorf("%w: %q", errTargetNotExist, prog.opts.RealRoot)
+	} else if err != nil {
+		return fmt.Errorf("failed to stat: %q (%w)", prog.opts.RealRoot, err)
 	}
 
-	if prog.opts.DryRun { //nolint:nestif
-		if err := prog.isEmptyStructure(ctx, prog.opts.MirrorRoot); err != nil && !errors.Is(err, os.ErrNotExist) {
-			return fmt.Errorf("failed ensuring emptiness: %q (%w)", prog.opts.MirrorRoot, err)
-		} else if err == nil {
-			fmt.Fprintf(prog.stdout, "dry: remove: %q\n", prog.opts.MirrorRoot)
+	if _, err := prog.fsys.Stat(prog.opts.MirrorRoot); err == nil {
+		fmt.Fprintln(prog.stdout, "testing if the existing mirror structure is empty...")
+
+		empty, err := prog.isEmptyStructure(ctx, prog.opts.MirrorRoot)
+		if err != nil {
+			return fmt.Errorf("failed checking for emptiness: %q (%w)", prog.opts.MirrorRoot, err)
 		}
-		fmt.Fprintf(prog.stdout, "dry: create: %q\n", prog.opts.MirrorRoot)
-	} else {
-		if err := prog.isEmptyStructure(ctx, prog.opts.MirrorRoot); err != nil && !errors.Is(err, os.ErrNotExist) {
-			return fmt.Errorf("failed ensuring emptiness: %q (%w)", prog.opts.MirrorRoot, err)
-		} else if err == nil {
+		if !empty {
+			return errMirrorNotEmpty
+		}
+
+		if prog.opts.DryRun {
+			fmt.Fprintf(prog.stdout, "dry: remove: %q\n", prog.opts.MirrorRoot)
+		} else {
 			if err := prog.fsys.RemoveAll(prog.opts.MirrorRoot); err != nil {
-				return fmt.Errorf("failed to remove mirror: %q (%w)", prog.opts.MirrorRoot, err)
+				return fmt.Errorf("failed to remove: %q (%w)", prog.opts.MirrorRoot, err)
 			}
 			fmt.Fprintf(prog.stdout, "removed: %q\n", prog.opts.MirrorRoot)
 		}
+	} else if !errors.Is(err, os.ErrNotExist) {
+		return fmt.Errorf("failed to stat: %q (%w)", prog.opts.MirrorRoot, err)
+	}
+
+	if prog.opts.DryRun {
+		fmt.Fprintf(prog.stdout, "dry: create: %q\n", prog.opts.MirrorRoot)
+	} else {
 		if err := prog.fsys.MkdirAll(prog.opts.MirrorRoot, dirBasePerm); err != nil {
-			return fmt.Errorf("failed to create mirror: %q (%w)", prog.opts.MirrorRoot, err)
+			return fmt.Errorf("failed to create: %q (%w)", prog.opts.MirrorRoot, err)
 		}
 		fmt.Fprintf(prog.stdout, "created: %q\n", prog.opts.MirrorRoot)
 	}
@@ -562,7 +575,7 @@ func (prog *program) createMirrorStructure(ctx context.Context) error {
 		}
 
 		if err != nil {
-			if os.IsNotExist(err) {
+			if errors.Is(err, os.ErrNotExist) {
 				fmt.Fprintf(prog.stderr, "skipped: %q (no longer exists)\n", path)
 
 				return nil
@@ -596,15 +609,12 @@ func (prog *program) createMirrorStructure(ctx context.Context) error {
 
 		if prog.opts.DryRun {
 			fmt.Fprintf(prog.stdout, "dry: create: %q\n", mirrorPath)
-
-			return nil
+		} else {
+			if err := prog.fsys.MkdirAll(mirrorPath, dirBasePerm); err != nil {
+				return prog.walkError(fmt.Errorf("failed to create: %q (%w)", mirrorPath, err))
+			}
+			fmt.Fprintf(prog.stdout, "created: %q\n", mirrorPath)
 		}
-
-		if err := prog.fsys.MkdirAll(mirrorPath, dirBasePerm); err != nil {
-			return prog.walkError(fmt.Errorf("failed to create: %q (%w)", mirrorPath, err))
-		}
-
-		fmt.Fprintf(prog.stdout, "created: %q\n", mirrorPath)
 
 		return nil
 	}); err != nil {
@@ -614,13 +624,17 @@ func (prog *program) createMirrorStructure(ctx context.Context) error {
 	return nil
 }
 
-//nolint:funlen
 func (prog *program) moveFiles(ctx context.Context) error {
 	if _, err := prog.fsys.Stat(prog.opts.MirrorRoot); errors.Is(err, os.ErrNotExist) {
 		return fmt.Errorf("%w: %q", errMirrorNotExist, prog.opts.MirrorRoot)
+	} else if err != nil {
+		return fmt.Errorf("failed to stat: %q (%w)", prog.opts.MirrorRoot, err)
 	}
+
 	if _, err := prog.fsys.Stat(prog.opts.RealRoot); errors.Is(err, os.ErrNotExist) {
 		return fmt.Errorf("%w: %q", errTargetNotExist, prog.opts.RealRoot)
+	} else if err != nil {
+		return fmt.Errorf("failed to stat: %q (%w)", prog.opts.RealRoot, err)
 	}
 
 	if err := afero.Walk(prog.fsys, prog.opts.MirrorRoot, func(path string, e os.FileInfo, err error) error {
@@ -629,7 +643,7 @@ func (prog *program) moveFiles(ctx context.Context) error {
 		}
 
 		if err != nil {
-			if os.IsNotExist(err) {
+			if errors.Is(err, os.ErrNotExist) {
 				fmt.Fprintf(prog.stderr, "skipped: %q (no longer exists)\n", path)
 
 				return nil
@@ -661,15 +675,14 @@ func (prog *program) moveFiles(ctx context.Context) error {
 			if _, err := prog.fsys.Stat(movePath); errors.Is(err, os.ErrNotExist) {
 				if prog.opts.DryRun {
 					fmt.Fprintf(prog.stdout, "dry: create: %q\n", movePath)
-
-					return nil
+				} else {
+					if err := prog.fsys.MkdirAll(movePath, dirBasePerm); err != nil {
+						return prog.walkError(fmt.Errorf("failed to create: %q (%w)", movePath, err))
+					}
+					fmt.Fprintf(prog.stdout, "created: %q\n", movePath)
 				}
-
-				if err := prog.fsys.MkdirAll(movePath, dirBasePerm); err != nil {
-					return prog.walkError(fmt.Errorf("failed to create: %q (%w)", movePath, err))
-				}
-
-				fmt.Fprintf(prog.stdout, "created: %q\n", movePath)
+			} else if err != nil {
+				return prog.walkError(fmt.Errorf("failed to stat: %q (%w)", movePath, err))
 			}
 
 			return nil
@@ -679,26 +692,27 @@ func (prog *program) moveFiles(ctx context.Context) error {
 			fmt.Fprintf(prog.stderr, "exists: %q -x-> %q (not overwriting)\n", path, movePath)
 
 			return nil
+		} else if !errors.Is(err, os.ErrNotExist) {
+			return prog.walkError(fmt.Errorf("failed to stat: %q (%w)", movePath, err))
 		}
 
 		if prog.opts.DryRun {
 			fmt.Fprintf(prog.stdout, "dry: move: %q -> %q\n", path, movePath)
+		} else {
+			if prog.opts.Direct {
+				if err := prog.fsys.Rename(path, movePath); err == nil {
+					fmt.Fprintf(prog.stdout, "moved: %q -> %q (direct)\n", path, movePath)
 
-			return nil
-		}
-
-		if prog.opts.Direct {
-			if err := prog.fsys.Rename(path, movePath); err == nil {
-				fmt.Fprintf(prog.stdout, "moved: %q -> %q (direct)\n", path, movePath)
-
-				return nil
+					return nil
+				}
 			}
-		}
 
-		if err := prog.copyAndRemove(path, movePath); err != nil {
-			return prog.walkError(fmt.Errorf("failed to move: %q -x-> %q (%w)", path, movePath, err))
+			if err := prog.copyAndRemove(path, movePath); err != nil {
+				return prog.walkError(fmt.Errorf("failed to move: %q -x-> %q (%w)", path, movePath, err))
+			}
+
+			fmt.Fprintf(prog.stdout, "moved: %q -> %q (c+r)\n", path, movePath)
 		}
-		fmt.Fprintf(prog.stdout, "moved: %q -> %q (c+r)\n", path, movePath)
 
 		return nil
 	}); err != nil {
@@ -708,7 +722,7 @@ func (prog *program) moveFiles(ctx context.Context) error {
 	return nil
 }
 
-func (prog *program) isEmptyStructure(ctx context.Context, path string) error {
+func (prog *program) isEmptyStructure(ctx context.Context, path string) (bool, error) {
 	path = filepath.Clean(path)
 	empty := true
 
@@ -728,14 +742,14 @@ func (prog *program) isEmptyStructure(ctx context.Context, path string) error {
 
 		return nil
 	}); err != nil {
-		return err
+		return false, err
 	}
 
 	if !empty {
-		return errMirrorNotEmpty
+		return false, nil
 	}
 
-	return nil
+	return true, nil
 }
 
 //nolint:nonamedreturns
@@ -766,8 +780,12 @@ func (prog *program) copyAndRemove(src string, dst string) (retErr error) {
 		if retErr != nil {
 			if _, err := prog.fsys.Stat(src); err == nil {
 				_ = prog.fsys.Remove(dst)
-			} else {
+			} else if errors.Is(err, os.ErrNotExist) {
 				fmt.Fprintf(prog.stderr, "cleanup: not found: %q\n", src)
+				fmt.Fprintf(prog.stderr, "cleanup: not removing: %q\n", dst)
+			} else {
+				fmt.Fprintf(prog.stderr, "cleanup: failed to stat: %s (%v)\n", src, err)
+				fmt.Fprintf(prog.stderr, "cleanup: not removing: %q\n", src)
 				fmt.Fprintf(prog.stderr, "cleanup: not removing: %q\n", dst)
 			}
 		}
@@ -804,8 +822,10 @@ func (prog *program) copyAndRemove(src string, dst string) (retErr error) {
 		return fmt.Errorf("%w: %q (%s) != %q (%s)", errHashMismatch, src, srcChecksum, dst, dstChecksum)
 	}
 
-	if _, err := prog.fsys.Stat(dst); err != nil {
+	if _, err := prog.fsys.Stat(dst); errors.Is(err, os.ErrNotExist) {
 		return fmt.Errorf("dst does not exist (after move): %w", err)
+	} else if err != nil {
+		return fmt.Errorf("failed to stat: %q (%w)", dst, err)
 	}
 
 	if err := prog.fsys.Remove(src); err != nil {

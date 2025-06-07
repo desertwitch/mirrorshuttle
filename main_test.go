@@ -689,8 +689,9 @@ func TestIsEmptyStructure_Success(t *testing.T) {
 	require.NoError(t, err)
 
 	prog := setupTestProgram(fs, nil)
-	err = prog.isEmptyStructure(t.Context(), "/empty")
+	empty, err := prog.isEmptyStructure(t.Context(), "/empty")
 	require.NoError(t, err)
+	require.True(t, empty)
 }
 
 func TestIsEmptyStructure_Error(t *testing.T) {
@@ -705,8 +706,9 @@ func TestIsEmptyStructure_Error(t *testing.T) {
 	require.NoError(t, err)
 
 	prog := setupTestProgram(fs, nil)
-	err = prog.isEmptyStructure(t.Context(), "/nonempty")
-	require.ErrorIs(t, err, errMirrorNotEmpty)
+	empty, err := prog.isEmptyStructure(t.Context(), "/nonempty")
+	require.NoError(t, err)
+	require.False(t, empty)
 }
 
 func TestIsEmptyStructure_CtxCancel_Error(t *testing.T) {
@@ -724,8 +726,9 @@ func TestIsEmptyStructure_CtxCancel_Error(t *testing.T) {
 	cancel()
 
 	prog := setupTestProgram(fs, nil)
-	err = prog.isEmptyStructure(ctx, "/empty")
+	empty, err := prog.isEmptyStructure(ctx, "/empty")
 	require.ErrorIs(t, err, context.Canceled)
+	require.False(t, empty)
 }
 
 func TestIsEmptyStructure_NonExistentPath_Error(t *testing.T) {
@@ -734,8 +737,9 @@ func TestIsEmptyStructure_NonExistentPath_Error(t *testing.T) {
 	fs := setupTestFs()
 
 	prog := setupTestProgram(fs, nil)
-	err := prog.isEmptyStructure(t.Context(), "/nonexistent")
+	empty, err := prog.isEmptyStructure(t.Context(), "/nonexistent")
 	require.ErrorIs(t, err, os.ErrNotExist)
+	require.False(t, empty)
 }
 
 func TestIsExcluded_ExactMatch_Success(t *testing.T) {
