@@ -1157,6 +1157,61 @@ func TestCreateMirrorStructure_RealRootNotExist_Error(t *testing.T) {
 	require.ErrorIs(t, err, os.ErrNotExist)
 }
 
+func TestCreateMirrorStructure_MirrorParentNotExist_Error(t *testing.T) {
+	t.Parallel()
+
+	fs := setupTestFs()
+
+	opts := &programOptions{
+		MirrorRoot: "/notexist/mirror",
+		RealRoot:   "/real",
+		DryRun:     false,
+	}
+
+	err := createFiles(fs, map[string]string{
+		"/real/dir1":          "test",
+		"/real/dir2":          "test",
+		"/real/dir1/file.txt": "test",
+	})
+	require.NoError(t, err)
+
+	prog := setupTestProgram(fs, opts)
+	err = prog.createMirrorStructure(t.Context())
+	require.ErrorIs(t, err, errMirrorParentNotExist)
+
+	// Should not create mirror root.
+	_, err = fs.Stat("/notexist/mirror")
+	require.ErrorIs(t, err, os.ErrNotExist)
+}
+
+func TestCreateMirrorStructure_MirrorParentNotDir_Error(t *testing.T) {
+	t.Parallel()
+
+	fs := setupTestFs()
+
+	opts := &programOptions{
+		MirrorRoot: "/notexist/mirror",
+		RealRoot:   "/real",
+		DryRun:     false,
+	}
+
+	err := createFiles(fs, map[string]string{
+		"/real/dir1":          "test",
+		"/real/dir2":          "test",
+		"/real/dir1/file.txt": "test",
+		"/notexist":           "test",
+	})
+	require.NoError(t, err)
+
+	prog := setupTestProgram(fs, opts)
+	err = prog.createMirrorStructure(t.Context())
+	require.ErrorIs(t, err, errMirrorParentNotDir)
+
+	// Should not create mirror root.
+	_, err = fs.Stat("/notexist/mirror")
+	require.ErrorIs(t, err, os.ErrNotExist)
+}
+
 func TestMoveFiles_RegularMove_Success(t *testing.T) {
 	t.Parallel()
 

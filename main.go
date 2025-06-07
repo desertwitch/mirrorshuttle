@@ -206,7 +206,7 @@ const (
 )
 
 var (
-	// Version is the application's version (filled in during compilation).
+	/* Version is the application's version (filled in during compilation). */
 	Version string
 
 	partialFailure bool
@@ -219,10 +219,12 @@ var (
 	errArgMissingMirrorTarget = errors.New("--mirror and --target paths must both be set")
 	errArgModeMismatch        = errors.New("--mode must either be 'init' or 'move'")
 
-	errHashMismatch   = errors.New("in-memory hash mismatch during I/O")
-	errMirrorNotEmpty = errors.New("--mirror contains files; run with --mode=move to relocate them, or remove the files manually")
-	errMirrorNotExist = errors.New("--mirror does not exist; have nowhere to move from")
-	errTargetNotExist = errors.New("--target does not exist; have nowhere to mirror from or move to")
+	errHashMismatch         = errors.New("in-memory hash mismatch during I/O")
+	errMirrorNotEmpty       = errors.New("--mirror contains files; run with --mode=move to relocate them, or remove the files manually")
+	errMirrorNotExist       = errors.New("--mirror does not exist; have nowhere to move from")
+	errTargetNotExist       = errors.New("--target does not exist; have nowhere to mirror from or move to")
+	errMirrorParentNotExist = errors.New("--mirror parent does not exist; cannot create mirror inside it")
+	errMirrorParentNotDir   = errors.New("--mirror parent is not a directory; cannot create mirror inside it")
 )
 
 type program struct {
@@ -409,7 +411,8 @@ func (prog *program) parseArgs(cliArgs []string) error {
 	}
 	if !setFlags["exclude"] {
 		for _, p := range yamlOpts.Excludes {
-			prog.opts.Excludes = append(prog.opts.Excludes, filepath.Clean(strings.TrimSpace(p))) // appends to nil
+			/* Since we established no excludes were given, easier to just append to nil-slice */
+			prog.opts.Excludes = append(prog.opts.Excludes, filepath.Clean(strings.TrimSpace(p)))
 		}
 	}
 	if !setFlags["direct"] {
@@ -534,14 +537,24 @@ func (prog *program) createMirrorStructure(ctx context.Context) error {
 		return fmt.Errorf("failed to stat: %q (%w)", prog.opts.RealRoot, err)
 	}
 
+	mirrorParent := filepath.Dir(prog.opts.MirrorRoot)
+	if e, err := prog.fsys.Stat(mirrorParent); err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return fmt.Errorf("%w: %q (%w)", errMirrorParentNotExist, mirrorParent, err)
+		}
+
+		return fmt.Errorf("failed to stat: %q (%w)", mirrorParent, err)
+	} else if !e.IsDir() {
+		return fmt.Errorf("%w: %q", errMirrorParentNotDir, mirrorParent)
+	}
+
 	if _, err := prog.fsys.Stat(prog.opts.MirrorRoot); err == nil {
 		fmt.Fprintln(prog.stdout, "testing if the existing mirror structure is empty...")
 
 		empty, err := prog.isEmptyStructure(ctx, prog.opts.MirrorRoot)
 		if err != nil {
 			return fmt.Errorf("failed checking for emptiness: %q (%w)", prog.opts.MirrorRoot, err)
-		}
-		if !empty {
+		} else if !empty {
 			return errMirrorNotEmpty
 		}
 
@@ -560,7 +573,7 @@ func (prog *program) createMirrorStructure(ctx context.Context) error {
 	if prog.opts.DryRun {
 		fmt.Fprintf(prog.stdout, "dry: create: %q\n", prog.opts.MirrorRoot)
 	} else {
-		if err := prog.fsys.MkdirAll(prog.opts.MirrorRoot, dirBasePerm); err != nil {
+		if err := prog.fsys.Mkdir(prog.opts.MirrorRoot, dirBasePerm); err != nil {
 			return fmt.Errorf("failed to create: %q (%w)", prog.opts.MirrorRoot, err)
 		}
 		fmt.Fprintf(prog.stdout, "created: %q\n", prog.opts.MirrorRoot)
@@ -604,10 +617,14 @@ func (prog *program) createMirrorStructure(ctx context.Context) error {
 
 		mirrorPath := filepath.Join(prog.opts.MirrorRoot, relPath)
 
+		if mirrorPath == prog.opts.MirrorRoot {
+			return nil /* already created */
+		}
+
 		if prog.opts.DryRun {
 			fmt.Fprintf(prog.stdout, "dry: create: %q\n", mirrorPath)
 		} else {
-			if err := prog.fsys.MkdirAll(mirrorPath, dirBasePerm); err != nil {
+			if err := prog.fsys.Mkdir(mirrorPath, dirBasePerm); err != nil {
 				return prog.walkError(fmt.Errorf("failed to create: %q (%w)", mirrorPath, err))
 			}
 			fmt.Fprintf(prog.stdout, "created: %q\n", mirrorPath)
@@ -673,7 +690,7 @@ func (prog *program) moveFiles(ctx context.Context) error {
 				if prog.opts.DryRun {
 					fmt.Fprintf(prog.stdout, "dry: create: %q\n", movePath)
 				} else {
-					if err := prog.fsys.MkdirAll(movePath, dirBasePerm); err != nil {
+					if err := prog.fsys.Mkdir(movePath, dirBasePerm); err != nil {
 						return prog.walkError(fmt.Errorf("failed to create: %q (%w)", movePath, err))
 					}
 					fmt.Fprintf(prog.stdout, "created: %q\n", movePath)
