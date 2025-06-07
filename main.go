@@ -1,5 +1,6 @@
 /*
-MirrorShuttle is a utility to move from sandbox to secure storage locations.
+MirrorShuttle is a utility to mirror a target, stage with structure, and move
+with integrity. It lets you keep your structure, but ditch the risk.
 
 mirrorshuttle provides a command-line interface for replicating the full
 directory structure of a target location into a sandbox or staging area. Content
@@ -108,8 +109,8 @@ RETURN CODES:
   - `0`: Success
   - `1`: Failure
   - `2`: Partial Failure (with `--skip-failed`)
-  - `3`: Mirror folder contains unmoved files (cannot `--mode=init`)
-  - `4`: Invalid command-line arguments and/or configuration files provided
+  - `3`: Mirror folder contains unmoved files (with `--mode=init`)
+  - `4`: Invalid command-line arguments and/or configuration file provided
 
 IMPLEMENTATION:
 
@@ -125,22 +126,27 @@ eventually, so they run the following initial command:
 	mirrorshuttle --mode=init --mirror=/mnt/user/incoming --target=/mnt/user
 
 The above command mirrors the `/mnt/user` structure into their staging location.
-Content is added to the mirror structure daily, and so a periodic cron job runs:
+New content is added there daily, and so a periodic cron job is set up to run:
 
 	mirrorshuttle --mode=move --mirror=/mnt/user/incoming --target=/mnt/user
 
-Whenever the cron job runs, any new content is moved to the respective locations.
-The user does an occasional cleanup within the archival site directly and hence
-runs the initialization command (again) after finishing their cleanup:
+Whenever the cron job runs, any new content is moved to the respective location.
+
+If the `--target` location never changes outside of mirrorshuttle's operation,
+normally no `--mode=init` would need to be run again (after the first time).
+
+But, the user does an occasional cleanup within their archival site directly and
+hence runs the initialization command (again) after finishing their cleanup:
 
 	mirrorshuttle --mode=init --mirror=/mnt/user/incoming --target=/mnt/user
 
-They might even run this command as part of their cron job, after the respective
-`--mode=move` operation, to ensure that their mirror structure is always up to
-date. They understand that if folders were removed in the `--target` structure,
+They could also run this command as part of their cron job, after the respective
+`--mode=move` operation, ensuring that their mirror folder is always up to date.
+
+They understand that if folders were removed in the `--target` structure,
 and `--mode=init` was not run again before the next `--mode=move`, any removed
 folders would be re-created. This is why `--target` locations should remain
-stable and not be modified without a follow-up re-running of `--mode=init`.
+static and not be modified without a follow-up re-running of `--mode=init`.
 
 DESIGN CHOICES AND LIMITATIONS:
 
@@ -159,8 +165,10 @@ are explicitly safe and in a known-consistent state. As a result, even minor
 issues can cause the process to halt, but this behavior ensures users retain
 full control over the outcome and can take corrective action with confidence.
 
-Any important information is written to standard error (stderr), while
-verbose operational information is written to standard output (stdout).
+Any important information is written to standard error (stderr), while verbose
+operational information is written to standard output (stdout).
+
+PRODUCTION USE CASES:
 
 mirrorshuttle is ideal for use in system automation, secure moving, or complex
 filesystem migration scenarios. Always use it with caution and ensure you
@@ -263,7 +271,7 @@ func main() {
 		os.Exit(exitCode)
 	}()
 
-	fmt.Fprintf(os.Stderr, "MirrorShuttle (v%s) - a sandbox to secure location mover\n", Version)
+	fmt.Fprintf(os.Stderr, "MirrorShuttle (v%s) - Keep your structure, ditch the risk.\n", Version)
 	fmt.Fprintf(os.Stderr, "(c) 2025 - desertwitch (Rysz) / GNU General Public License v2\n\n")
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -352,12 +360,12 @@ func (prog *program) parseArgs(cliArgs []string) error {
 	prog.flags.SetOutput(prog.stderr)
 	prog.flags.Usage = func() {
 		fmt.Fprintf(prog.stderr, "usage: %q --mode=init|move --mirror=ABSPATH --target=ABSPATH\n", cliArgs[0])
-		fmt.Fprintf(prog.stderr, "\t[--exclude=ABSPATH] [--exclude=ABSPATH] [--direct] [--skip-failed] [--dry-run]\n\n")
+		fmt.Fprintf(prog.stderr, "\t\t[--exclude=ABSPATH] [--exclude=ABSPATH] [--direct] [--skip-failed] [--dry-run]\n\n")
 		prog.flags.PrintDefaults()
 	}
 
 	prog.flags.StringVar(&prog.opts.Mode, "mode", "", "operation mode: 'init' or 'move'; always needed")
-	prog.flags.StringVar(&yamlFile, "config", "", "a yaml configuration file; used with the specified mode")
+	prog.flags.StringVar(&yamlFile, "config", "", "absolute path to a yaml configuration file; used with the specified mode")
 	prog.flags.StringVar(&prog.opts.MirrorRoot, "mirror", "", "absolute path to the mirror structure to create; files will be moved *from* here")
 	prog.flags.StringVar(&prog.opts.RealRoot, "target", "", "absolute path to the real structure to mirror; files will be moved *to* here")
 	prog.flags.Var(&prog.opts.Excludes, "exclude", "absolute path to exclude; can be repeated multiple times")
