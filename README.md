@@ -1,5 +1,5 @@
 <div align="center">
-    <img alt="Logo" src="mirrorshuttle.png" width="260">
+    <img alt="Logo" src="assets/mirrorshuttle.png" width="260">
     <h1>MirrorShuttle</h1>
     <p>Keep your structure, ditch the risk.</p>
 </div>
@@ -15,8 +15,11 @@
     <a href="https://github.com/desertwitch/mirrorshuttle/actions/workflows/golangci-lint.yml"><img alt="Lint" src="https://github.com/desertwitch/mirrorshuttle/actions/workflows/golangci-lint.yml/badge.svg"></a>
     <a href="https://github.com/desertwitch/mirrorshuttle/actions/workflows/golang-tests.yml"><img alt="Tests" src="https://github.com/desertwitch/mirrorshuttle/actions/workflows/golang-tests.yml/badge.svg"></a>
     <a href="https://github.com/desertwitch/mirrorshuttle/actions/workflows/golang-build.yml"><img alt="Build" src="https://github.com/desertwitch/mirrorshuttle/actions/workflows/golang-build.yml/badge.svg"></a>
+</div><br>
+
+<div align="center">
+    <img alt="Chart" src="assets/chart-w.png">
 </div>
-<hr>
 
 #### OVERVIEW
 
