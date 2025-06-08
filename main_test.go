@@ -362,7 +362,7 @@ func TestRun_DryRunModeAndSkipFailed_Success(t *testing.T) {
 	require.NotContains(t, stderr.String(), "skipped") // but should not have really failed
 
 	require.Equal(t, exitCodeSuccess, exitCode)
-	require.Contains(t, stdout.String(), "running in dry mode")
+	require.Contains(t, stderr.String(), "running in dry mode")
 }
 
 func TestRun_MultipleExcludes_Success(t *testing.T) {
