@@ -126,7 +126,6 @@ func (prog *program) moveFiles(ctx context.Context) error {
 	return nil
 }
 
-//nolint:nonamedreturns
 func (prog *program) copyAndRemove(src string, dst string) (retErr error) {
 	var inputClosed, outputClosed, verifierClosed, dstWritten bool
 
