@@ -184,7 +184,7 @@ The program is intentionally designed not to be run as root. All operations are
 expected to be performed under a regular user account. When moving files back
 into the target structure, ownership of those files will reflect the user
 executing the tool. Additionally, file and directory permissions are created
-respecting the environments's current `umask`, ensuring predictable behavior
+respecting the environment's current `umask`, ensuring predictable behavior
 across environments without requiring privileged access.
 
 All non-routine messages - including warnings, errors, and anything requiring
