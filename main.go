@@ -495,7 +495,7 @@ func (prog *program) printOpts() error {
 
 func (prog *program) run(ctx context.Context) (int, error) {
 	if prog.opts.DryRun {
-		fmt.Fprintln(prog.stdout, "warning: running in dry mode (no changes will be made)")
+		fmt.Fprintln(prog.stderr, "warning: running in dry mode (no changes will be made)")
 	}
 
 	switch prog.opts.Mode {
