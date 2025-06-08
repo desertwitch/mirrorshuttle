@@ -869,7 +869,7 @@ func TestCopyAndRemove_DstTmpFileExists_Success(t *testing.T) {
 	require.NoError(t, err)
 
 	_, err = fs.Stat("/dst/file.txt.mirsht")
-	require.Error(t, err, os.ErrNotExist)
+	require.ErrorIs(t, err, os.ErrNotExist)
 }
 
 func TestWalkError_SkipFailedTrue_Success(t *testing.T) { //nolint:paralleltest
