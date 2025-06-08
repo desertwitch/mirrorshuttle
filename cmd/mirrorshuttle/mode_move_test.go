@@ -132,6 +132,8 @@ func TestMoveFiles_FileAlreadyExists_Success(t *testing.T) {
 	content, err = afero.ReadFile(fs, "/mirror/file.txt")
 	require.NoError(t, err)
 	require.Equal(t, "mirror content", string(content))
+
+	require.True(t, prog.hasUnmovedFiles)
 }
 
 func TestMoveFiles_WithExcludes_Success(t *testing.T) {
@@ -521,6 +523,11 @@ func TestCopyAndRemove_DstTmpFileExists_Success(t *testing.T) {
 
 	_, err = fs.Stat("/dst/file.txt.mirsht")
 	require.ErrorIs(t, err, os.ErrNotExist)
+
+	// Verify destination exists with correct content.
+	content, err := afero.ReadFile(fs, "/dst/file.txt")
+	require.NoError(t, err)
+	require.Equal(t, "hello", string(content))
 }
 
 func TestCopyAndRemove_SourceNotFound_Error(t *testing.T) {

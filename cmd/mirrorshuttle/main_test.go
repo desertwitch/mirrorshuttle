@@ -34,12 +34,6 @@ func setupTestProgram(fs afero.Fs, opts *programOptions) *program {
 	}
 }
 
-func setupTestFs() afero.Fs {
-	fs := afero.NewMemMapFs()
-
-	return fs
-}
-
 type flakyFs struct {
 	afero.Fs
 	failOnPath string
@@ -51,6 +45,12 @@ func (f flakyFs) Rename(oldname, newname string) error {
 	}
 
 	return f.Fs.Rename(oldname, newname)
+}
+
+func setupTestFs() afero.Fs {
+	fs := afero.NewMemMapFs()
+
+	return fs
 }
 
 func createDirStructure(fs afero.Fs, paths []string) error {
