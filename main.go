@@ -228,9 +228,7 @@ const (
 	exitCodeModeFailure    = 3
 	exitCodeArgFailure     = 4
 
-	dirBasePerm  = 0o777
-	fileBasePerm = 0o666
-
+	dirBasePerm = 0o777
 	exitTimeout = 60 * time.Second
 )
 
@@ -817,7 +815,7 @@ func (prog *program) copyAndRemove(src string, dst string) (retErr error) {
 
 	tmp := dst + ".mirsht"
 
-	out, err := prog.fsys.OpenFile(tmp, os.O_CREATE|os.O_WRONLY|os.O_EXCL, os.FileMode(fileBasePerm))
+	out, err := prog.fsys.Create(tmp)
 	if err != nil {
 		return fmt.Errorf("failed to open tmp: %q (%w)", tmp, err)
 	}

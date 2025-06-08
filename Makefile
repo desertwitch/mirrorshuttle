@@ -3,7 +3,9 @@
 BINARY = mirrorshuttle
 SRC_DIR = .
 
-VERSION := $(shell git describe --tags --exact-match 2>/dev/null || git rev-parse --short=7 HEAD)
+VERSION := $(shell \
+  git describe --tags --exact-match 2>/dev/null | sed 's/^v//' || \
+  git rev-parse --short=7 HEAD)
 
 .PHONY: all $(BINARY) check clean debug help info lint test test-coverage vendor
 

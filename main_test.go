@@ -850,7 +850,7 @@ func TestCopyAndRemove_SourceNotFound_Error(t *testing.T) {
 	require.ErrorIs(t, err, os.ErrNotExist)
 }
 
-func TestCopyAndRemove_DstTmpFileExists_Error(t *testing.T) {
+func TestCopyAndRemove_DstTmpFileExists_Success(t *testing.T) {
 	t.Parallel()
 
 	fs := setupTestFs()
@@ -861,10 +861,15 @@ func TestCopyAndRemove_DstTmpFileExists_Error(t *testing.T) {
 	require.NoError(t, createFiles(fs, files))
 
 	prog := setupTestProgram(fs, nil)
-	err := prog.copyAndRemove("/src/file.txt", "/dst/file.txt")
 
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "failed to open tmp")
+	err := prog.copyAndRemove("/src/file.txt", "/dst/file.txt")
+	require.NoError(t, err)
+
+	_, err = fs.Stat("/dst/file.txt")
+	require.NoError(t, err)
+
+	_, err = fs.Stat("/dst/file.txt.mirsht")
+	require.Error(t, err, os.ErrNotExist)
 }
 
 func TestWalkError_SkipFailedTrue_Success(t *testing.T) { //nolint:paralleltest
