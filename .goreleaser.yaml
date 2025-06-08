@@ -10,7 +10,7 @@ before:
 
 builds:
   - id: mirrorshuttle
-    main: .
+    main: ./cmd/mirrorshuttle
     binary: mirrorshuttle
     env:
       - CGO_ENABLED=0

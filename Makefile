@@ -1,7 +1,7 @@
 # Makefile
 
 BINARY = mirrorshuttle
-SRC_DIR = .
+SRC_DIR = ./cmd/mirrorshuttle
 
 VERSION := $(shell \
   tag=$$(git describe --tags --exact-match 2>/dev/null); \
