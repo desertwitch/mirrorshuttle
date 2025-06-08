@@ -855,8 +855,8 @@ func TestCopyAndRemove_DstTmpFileExists_Error(t *testing.T) {
 
 	fs := setupTestFs()
 	files := map[string]string{
-		"/src/file.txt":     "hello",
-		"/dst/file.txt.tmp": "existing",
+		"/src/file.txt":        "hello",
+		"/dst/file.txt.mirsht": "existing",
 	}
 	require.NoError(t, createFiles(fs, files))
 

@@ -794,7 +794,7 @@ func (prog *program) copyAndRemove(src string, dst string) (retErr error) {
 		}
 	}()
 
-	tmp := dst + ".tmp"
+	tmp := dst + ".mirsht"
 
 	out, err := prog.fsys.OpenFile(tmp, os.O_CREATE|os.O_WRONLY|os.O_EXCL, os.FileMode(fileBasePerm))
 	if err != nil {
