@@ -289,7 +289,7 @@ func main() {
 		os.Exit(exitCode)
 	}()
 
-	fmt.Fprintf(os.Stdout, "MirrorShuttle (v%s) - Keep your organization, ditch the risks.\n", Version)
+	fmt.Fprintf(os.Stdout, "MirrorShuttle (v%s) - Keep your organization, ditch the ransomware.\n", Version)
 	fmt.Fprintf(os.Stdout, "(c) 2025 - desertwitch (Rysz) / License: GNU General Public License v2\n\n")
 
 	ctx, cancel := context.WithCancel(context.Background())

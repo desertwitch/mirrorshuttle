@@ -1,7 +1,7 @@
 <div align="center">
     <img alt="Logo" src="assets/mirrorshuttle.png" width="260">
     <h1>MirrorShuttle</h1>
-    <p>Keep your organization, ditch the risks.</p>
+    <p>Keep your organization, ditch the ransomware.</p>
 </div>
 
 <div align="center">
