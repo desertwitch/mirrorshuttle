@@ -376,7 +376,7 @@ func (prog *program) parseArgs(cliArgs []string) error {
 	prog.flags.SetOutput(prog.stderr)
 	prog.flags.Usage = func() {
 		fmt.Fprintf(prog.stderr, "usage: %q --mode=init|move --mirror=ABSPATH --target=ABSPATH\n", cliArgs[0])
-		fmt.Fprintf(prog.stderr, "\t\t[--exclude=ABSPATH] [--exclude=ABSPATH] [--direct] [--skip-failed] [--dry-run]\n\n")
+		fmt.Fprintf(prog.stderr, "\t\t[--exclude=ABSPATH] [--exclude=ABSPATH] [--direct] [--verify] [--skip-failed] [--dry-run]\n\n")
 		prog.flags.PrintDefaults()
 	}
 
