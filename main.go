@@ -31,7 +31,7 @@ FEATURES:
   - Optional dry-run mode for safe previews.
   - Atomic file operations when possible.
   - Safe fallback to copy-and-remove across filesystems.
-  - Checksum validation using BLAKE3 to ensure in-memory integrity.
+  - Checksum validation using BLAKE3 to ensure in-memory/file integrity.
   - Exclude rules for omitting specific absolute paths from either mode.
   - Fails early on misconfiguration or unsafe directory states.
 
