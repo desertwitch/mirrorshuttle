@@ -88,7 +88,7 @@ system locations; ensure they are executable by running `chmod +x` before use.
 
 	--verify
 		Optional. Re-read the target file again after moving and verify against
-		the previously generated (in-memory) hash, ensuring target was written
+		a previously calculated (source file) hash, ensuring target was written
 		to disk without corruption. Requires a full re-read of the target file.
 
 		Default: false
