@@ -71,6 +71,13 @@ ARGUMENTS:
 
 		Default: false
 
+	--verify
+		Optional. Re-read the target file again after moving and verify against
+		the previously generated (in-memory) hash, ensuring target was written
+		to disk without corruption. Requires a full re-read of the target file.
+
+		Default: false
+
 	--skip-failed
 		Optional. Do not exit on non-fatal failures, skip the failed element
 		and proceed instead; returns with a partial failure return code.
@@ -96,6 +103,7 @@ YAML Configuration Example:
 	  - /real/path/skip-this
 	  - /real/path/temp
 	direct: true
+	verify: false
 	skip-failed: false
 	dry-run: false
 
@@ -219,7 +227,8 @@ var (
 	errArgMissingMirrorTarget = errors.New("--mirror and --target paths must both be set")
 	errArgModeMismatch        = errors.New("--mode must either be 'init' or 'move'")
 
-	errHashMismatch         = errors.New("in-memory hash mismatch during I/O")
+	errMemoryHashMismatch   = errors.New("in-memory hash mismatch; possible corruption during in-memory I/O")
+	errVerifyHashMismatch   = errors.New("--verify pass hash mismatch; possible corruption during disk-write I/O")
 	errMirrorNotEmpty       = errors.New("--mirror contains files; run with --mode=move to relocate them, or remove the files manually")
 	errMirrorNotExist       = errors.New("--mirror does not exist; have nowhere to move from")
 	errTargetNotExist       = errors.New("--target does not exist; have nowhere to mirror from or move to")
@@ -242,6 +251,7 @@ type programOptions struct {
 	RealRoot   string     `yaml:"target"`
 	Excludes   excludeArg `yaml:"exclude"`
 	Direct     bool       `yaml:"direct"`
+	Verify     bool       `yaml:"verify"`
 	SkipFailed bool       `yaml:"skip-failed"`
 	DryRun     bool       `yaml:"dry-run"`
 }
@@ -376,6 +386,7 @@ func (prog *program) parseArgs(cliArgs []string) error {
 	prog.flags.StringVar(&prog.opts.RealRoot, "target", "", "absolute path to the real structure to mirror; files will be moved *to* here")
 	prog.flags.Var(&prog.opts.Excludes, "exclude", "absolute path to exclude; can be repeated multiple times")
 	prog.flags.BoolVar(&prog.opts.Direct, "direct", false, "use atomic rename when possible; fallback to copy and remove if it fails or crosses filesystems")
+	prog.flags.BoolVar(&prog.opts.Verify, "verify", false, "verify again the hash of a target file after moving it; requires an extra full read of the file")
 	prog.flags.BoolVar(&prog.opts.SkipFailed, "skip-failed", false, "do not exit on non-fatal failures; skip failed element and proceed instead")
 	prog.flags.BoolVar(&prog.opts.DryRun, "dry-run", false, "preview only; no changes are written to disk")
 
@@ -417,6 +428,9 @@ func (prog *program) parseArgs(cliArgs []string) error {
 	}
 	if !setFlags["direct"] {
 		prog.opts.Direct = yamlOpts.Direct
+	}
+	if !setFlags["verify"] {
+		prog.opts.Verify = yamlOpts.Verify
 	}
 	if !setFlags["skip-failed"] {
 		prog.opts.SkipFailed = yamlOpts.SkipFailed
@@ -768,7 +782,7 @@ func (prog *program) isEmptyStructure(ctx context.Context, path string) (bool, e
 
 //nolint:nonamedreturns
 func (prog *program) copyAndRemove(src string, dst string) (retErr error) {
-	var inputClosed, outputClosed bool
+	var inputClosed, outputClosed, verifierClosed, dstWritten bool
 
 	in, err := prog.fsys.Open(src)
 	if err != nil {
@@ -780,9 +794,11 @@ func (prog *program) copyAndRemove(src string, dst string) (retErr error) {
 		}
 	}()
 
-	out, err := prog.fsys.OpenFile(dst, os.O_CREATE|os.O_WRONLY|os.O_EXCL, os.FileMode(fileBasePerm))
+	tmp := dst + ".tmp"
+
+	out, err := prog.fsys.OpenFile(tmp, os.O_CREATE|os.O_WRONLY|os.O_EXCL, os.FileMode(fileBasePerm))
 	if err != nil {
-		return fmt.Errorf("failed to open dst: %q (%w)", dst, err)
+		return fmt.Errorf("failed to open tmp: %q (%w)", tmp, err)
 	}
 	defer func() {
 		if !outputClosed {
@@ -791,16 +807,28 @@ func (prog *program) copyAndRemove(src string, dst string) (retErr error) {
 	}()
 
 	defer func() {
-		if retErr != nil {
+		if retErr != nil { //nolint:nestif
 			if _, err := prog.fsys.Stat(src); err == nil {
-				_ = prog.fsys.Remove(dst)
+				if !dstWritten {
+					_ = prog.fsys.Remove(tmp)
+				} else {
+					_ = prog.fsys.Remove(dst)
+				}
 			} else if errors.Is(err, os.ErrNotExist) {
 				fmt.Fprintf(prog.stderr, "cleanup: not found: %q\n", src)
-				fmt.Fprintf(prog.stderr, "cleanup: not removing: %q\n", dst)
+				if !dstWritten {
+					fmt.Fprintf(prog.stderr, "cleanup: not removing: %q\n", tmp)
+				} else {
+					fmt.Fprintf(prog.stderr, "cleanup: not removing: %q\n", dst)
+				}
 			} else {
 				fmt.Fprintf(prog.stderr, "cleanup: failed to stat: %s (%v)\n", src, err)
 				fmt.Fprintf(prog.stderr, "cleanup: not removing: %q\n", src)
-				fmt.Fprintf(prog.stderr, "cleanup: not removing: %q\n", dst)
+				if !dstWritten {
+					fmt.Fprintf(prog.stderr, "cleanup: not removing: %q\n", tmp)
+				} else {
+					fmt.Fprintf(prog.stderr, "cleanup: not removing: %q\n", dst)
+				}
 			}
 		}
 	}()
@@ -825,7 +853,7 @@ func (prog *program) copyAndRemove(src string, dst string) (retErr error) {
 	inputClosed = true
 
 	if err := out.Close(); err != nil {
-		return fmt.Errorf("failed to close dst: %q (%w)", dst, err)
+		return fmt.Errorf("failed to close tmp: %q (%w)", tmp, err)
 	}
 	outputClosed = true
 
@@ -833,13 +861,40 @@ func (prog *program) copyAndRemove(src string, dst string) (retErr error) {
 	dstChecksum := hex.EncodeToString(dstHasher.Sum(nil))
 
 	if srcChecksum != dstChecksum {
-		return fmt.Errorf("%w: %q (%s) != %q (%s)", errHashMismatch, src, srcChecksum, dst, dstChecksum)
+		return fmt.Errorf("%w: %q (%s) != %q (%s)", errMemoryHashMismatch, src, srcChecksum, tmp, dstChecksum)
 	}
 
-	if _, err := prog.fsys.Stat(dst); errors.Is(err, os.ErrNotExist) {
-		return fmt.Errorf("dst does not exist (after move): %q (%w)", dst, err)
-	} else if err != nil {
-		return fmt.Errorf("failed to stat: %q (%w)", dst, err)
+	if err := prog.fsys.Rename(tmp, dst); err != nil {
+		return fmt.Errorf("failed to rename tmp to dst: %q -x-> %q (%w)", tmp, dst, err)
+	}
+	dstWritten = true
+
+	if prog.opts.Verify {
+		verifyHasher := blake3.New()
+
+		verifier, err := prog.fsys.Open(dst)
+		if err != nil {
+			return fmt.Errorf("failed to re-open dst for --verify pass: %q (%w)", dst, err)
+		}
+		defer func() {
+			if !verifierClosed {
+				verifier.Close()
+			}
+		}()
+
+		if _, err := io.Copy(verifyHasher, verifier); err != nil {
+			return fmt.Errorf("failed to re-read dst for --verify pass: %q (%w)", dst, err)
+		}
+
+		if err := verifier.Close(); err != nil {
+			return fmt.Errorf("failed to close dst after --verify pass: %q (%w)", dst, err)
+		}
+		verifierClosed = true
+
+		verifyChecksum := hex.EncodeToString(verifyHasher.Sum(nil))
+		if verifyChecksum != srcChecksum {
+			return fmt.Errorf("%w: %q (%s) != %q (%s)", errVerifyHashMismatch, src, srcChecksum, dst, verifyChecksum)
+		}
 	}
 
 	if err := prog.fsys.Remove(src); err != nil {

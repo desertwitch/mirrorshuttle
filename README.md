@@ -95,6 +95,13 @@ The tool operates in two distinct operational modes, `init` and `move`:
 
         Default: false
 
+    --verify
+        Optional. Re-read the target file again after moving and verify against
+        the previously generated (in-memory) hash, ensuring target was written
+        to disk without corruption. Requires a full re-read of the target file.
+
+        Default: false
+
     --skip-failed
         Optional. Do not exit on non-fatal failures, skip the failed element
         and proceed instead; returns with a partial failure return code.
@@ -120,6 +127,7 @@ The tool operates in two distinct operational modes, `init` and `move`:
       - /real/path/skip-this
       - /real/path/temp
     direct: true
+    verify: false
     skip-failed: false
     dry-run: false
 

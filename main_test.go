@@ -154,6 +154,7 @@ mirror: /mirror-should-not-be-used
 target: /real
 dry-run: true
 skip-failed: false
+verify: true
 exclude:
   - /real/exclude-by-yaml
 `
@@ -178,6 +179,7 @@ exclude:
 	prog, _ := newProgram(args, fs, &stdout, &stderr, false)
 	require.NotNil(t, prog)
 	require.True(t, prog.opts.SkipFailed)
+	require.True(t, prog.opts.Verify)
 
 	exitCode, err := prog.run(t.Context())
 	require.NoError(t, err)
@@ -807,6 +809,35 @@ func TestCopyAndRemove_Success(t *testing.T) {
 	content, err := afero.ReadFile(fs, "/dst/file.txt")
 	require.NoError(t, err)
 	require.Equal(t, "test content", string(content))
+}
+
+func TestCopyAndRemove_Verify_Success(t *testing.T) {
+	t.Parallel()
+
+	fs := setupTestFs()
+	files := map[string]string{
+		"/src/file.txt": "test content",
+	}
+	err := createFiles(fs, files)
+	require.NoError(t, err)
+
+	prog := setupTestProgram(fs, nil)
+	prog.opts.Verify = true
+
+	err = prog.copyAndRemove("/src/file.txt", "/dst/file.txt")
+	require.NoError(t, err)
+
+	// Verify source is removed.
+	_, err = fs.Stat("/src/file.txt")
+	require.ErrorIs(t, err, os.ErrNotExist)
+
+	// Verify destination exists with correct content.
+	content, err := afero.ReadFile(fs, "/dst/file.txt")
+	require.NoError(t, err)
+	require.Equal(t, "test content", string(content))
+
+	// Verify the requested mode did not change within the program.
+	require.True(t, prog.opts.Verify)
 }
 
 func TestCopyAndRemove_SourceNotFound_Error(t *testing.T) {
