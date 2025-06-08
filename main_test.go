@@ -850,6 +850,23 @@ func TestCopyAndRemove_SourceNotFound_Error(t *testing.T) {
 	require.ErrorIs(t, err, os.ErrNotExist)
 }
 
+func TestCopyAndRemove_DstTmpFileExists_Error(t *testing.T) {
+	t.Parallel()
+
+	fs := setupTestFs()
+	files := map[string]string{
+		"/src/file.txt":     "hello",
+		"/dst/file.txt.tmp": "existing",
+	}
+	require.NoError(t, createFiles(fs, files))
+
+	prog := setupTestProgram(fs, nil)
+	err := prog.copyAndRemove("/src/file.txt", "/dst/file.txt")
+
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "failed to open tmp")
+}
+
 func TestWalkError_SkipFailedTrue_Success(t *testing.T) { //nolint:paralleltest
 	// Do not run this test in parallel due to global partialFailure.
 	fs := setupTestFs()
