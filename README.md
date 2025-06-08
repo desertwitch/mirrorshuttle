@@ -59,6 +59,16 @@ The tool operates in two distinct operational modes, `init` and `move`:
   - Exclude rules for omitting specific absolute paths from either mode.
   - Fails early on misconfiguration or unsafe directory states.
 
+#### INSTALLATION
+
+To build from source, a Makefile is included with the project's source code.
+Running `make all` will compile the application and pull in any necessary
+dependencies. `make check` runs the test suite and static analysis tools.
+
+For convenience, precompiled static binaries for common architectures are
+released through GitHub. These can be installed into `/usr/bin/` or respective
+system locations; ensure they are executable by running `chmod +x` before use.
+
 #### USAGE
 
     mirrorshuttle --mode=init|move --mirror=ABSPATH --target=ABSPATH [flags]
@@ -197,8 +207,19 @@ full control over the outcome and can take corrective action with confidence.
 Any important information is written to standard error (stderr), while verbose
 operational information is written to standard output (stdout).
 
-#### PRODUCTION USE CASES
+#### POSSIBLE USE CASES IN PRODUCTION
 
-mirrorshuttle is ideal for use in system automation, secure moving, or complex
-filesystem migration scenarios. Always use it with caution and ensure you
-understand the behavior of the operational modes before deploying in production.
+mirrorshuttle is well-suited for system automation, secure file transfers, and
+complex filesystem migration tasks. While it can be executed directly from the
+command line interface (CLI), it is often most effective when integrated into
+shell scripts or scheduled with cron jobs. 
+
+Always use with caution and ensure you fully understand the behavior of its
+operational modes before deploying in a production environment.
+
+#### SECURITY, CONTRIBUTIONS AND LICENSING
+
+Please report any issues via the GitHub Issues tracker. While no major features
+are currently planned, contributions are welcome. Contributions should be
+submitted through GitHub and, if possible, should pass the test suite and comply
+with the project's linting rules. All code is licensed under the GPLv2 license.

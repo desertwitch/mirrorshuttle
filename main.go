@@ -25,7 +25,7 @@ The tool operates in two distinct operational modes, `init` and `move`:
     efficiency. If a direct rename isn’t possible (e.g., across filesystems), it
     falls back to a safe copy-and-remove strategy.
 
-FEATURES:
+# FEATURES
 
   - Clean CLI and YAML configuration support.
   - Optional dry-run mode for safe previews.
@@ -35,11 +35,21 @@ FEATURES:
   - Exclude rules for omitting specific absolute paths from either mode.
   - Fails early on misconfiguration or unsafe directory states.
 
-USAGE:
+# INSTALLATION
+
+To build from source, a Makefile is included with the project's source code.
+Running `make all` will compile the application and pull in any necessary
+dependencies. `make check` runs the test suite and static analysis tools.
+
+For convenience, precompiled static binaries for common architectures are
+released through GitHub. These can be installed into `/usr/bin/` or respective
+system locations; ensure they are executable by running `chmod +x` before use.
+
+# USAGE
 
 	mirrorshuttle --mode=init|move --mirror=ABSPATH --target=ABSPATH [flags]
 
-ARGUMENTS:
+# ARGUMENTS
 
 	--mode string
 		Required. Must be either "init" or "move".
@@ -95,7 +105,7 @@ ARGUMENTS:
 		CLI flags always override any values set in the configuration file.
 		Exception: `--mode` argument must always be specified via command-line.
 
-YAML Configuration Example:
+# YAML CONFIGURATION EXAMPLE
 
 	mirror: /mirror/path
 	target: /real/path
@@ -109,7 +119,7 @@ YAML Configuration Example:
 
 Invalid configurations (unknown or malformed fields) are rejected at runtime.
 
-RETURN CODES:
+# RETURN CODES
 
   - `0`: Success
   - `1`: Failure
@@ -117,7 +127,7 @@ RETURN CODES:
   - `3`: Mirror folder contains unmoved files (with `--mode=init`)
   - `4`: Invalid command-line arguments and/or configuration file provided
 
-IMPLEMENTATION:
+# IMPLEMENTATION
 
 An example implementation could be a RAID system that has all user "shares"
 inside `/mnt/user`, but only `/mnt/user/incoming` writable from the outside
@@ -153,7 +163,7 @@ and `--mode=init` was not run again before the next `--mode=move`, any removed
 folders would be re-created. This is why `--target` locations should remain
 static and not be modified without a follow-up re-running of `--mode=init`.
 
-DESIGN CHOICES AND LIMITATIONS:
+# DESIGN CHOICES AND LIMITATIONS
 
 mirrorshuttle assumes the `--target` location to be relatively static, in which
 case `--mode=init` calls should not need to be frequent (if at all). If the
@@ -173,11 +183,22 @@ full control over the outcome and can take corrective action with confidence.
 Any important information is written to standard error (stderr), while verbose
 operational information is written to standard output (stdout).
 
-PRODUCTION USE CASES:
+# POSSIBLE USE CASES IN PRODUCTION
 
-mirrorshuttle is ideal for use in system automation, secure moving, or complex
-filesystem migration scenarios. Always use it with caution and ensure you
-understand the behavior of the operational modes before deploying in production.
+mirrorshuttle is well-suited for system automation, secure file transfers, and
+complex filesystem migration tasks. While it can be executed directly from the
+command line interface (CLI), it is often most effective when integrated into
+shell scripts or scheduled with cron jobs.
+
+Always use with caution and ensure you fully understand the behavior of its
+operational modes before deploying in a production environment.
+
+# SECURITY, CONTRIBUTIONS AND LICENSING
+
+Please report any issues via the GitHub Issues tracker. While no major features
+are currently planned, contributions are welcome. Contributions should be
+submitted through GitHub and, if possible, should pass the test suite and comply
+with the project's linting rules. All code is licensed under the GPLv2 license.
 */
 package main
 
