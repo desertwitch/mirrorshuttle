@@ -149,7 +149,8 @@ Invalid configurations (unknown or malformed fields) are rejected at runtime.
   - `1`: Failure
   - `2`: Partial Failure (with `--skip-failed`)
   - `3`: Mirror folder contains unmoved files (with `--mode=init`)
-  - `4`: Invalid command-line arguments and/or configuration file provided
+  - `4`: Unmoved files due to existing target files (with `--mode=move`)
+  - `5`: Invalid command-line arguments and/or configuration file provided
 
 #### IMPLEMENTATION
 

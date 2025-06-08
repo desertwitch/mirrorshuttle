@@ -125,7 +125,8 @@ Invalid configurations (unknown or malformed fields) are rejected at runtime.
   - `1`: Failure
   - `2`: Partial Failure (with `--skip-failed`)
   - `3`: Mirror folder contains unmoved files (with `--mode=init`)
-  - `4`: Invalid command-line arguments and/or configuration file provided
+  - `4`: Unmoved files due to existing target files (with `--mode=move`)
+  - `5`: Invalid command-line arguments and/or configuration file provided
 
 # IMPLEMENTATION
 
@@ -233,8 +234,9 @@ const (
 	exitCodeSuccess        = 0
 	exitCodeFailure        = 1
 	exitCodePartialFailure = 2
-	exitCodeModeFailure    = 3
-	exitCodeArgFailure     = 4
+	exitCodeMirrNotEmpty   = 3
+	exitCodeUnmovedFiles   = 4
+	exitCodeConfigFailure  = 5
 
 	dirBasePerm = 0o777
 	exitTimeout = 60 * time.Second
@@ -243,8 +245,6 @@ const (
 var (
 	/* Version is the application's version (filled in during compilation). */
 	Version string
-
-	partialFailure bool
 
 	errArgConfigMalformed     = errors.New("--config yaml file is malformed")
 	errArgConfigMissing       = errors.New("--config yaml file does not exist")
@@ -270,6 +270,10 @@ type program struct {
 	testMode bool
 	opts     *programOptions
 	flags    *flag.FlagSet
+
+	hasUnmovedFiles    bool
+	hasUnmovableFiles  bool
+	hasPartialFailures bool
 }
 
 type programOptions struct {
@@ -301,9 +305,6 @@ func main() {
 	var exitCode int
 
 	defer func() {
-		if partialFailure && exitCode == exitCodeSuccess {
-			os.Exit(exitCodePartialFailure)
-		}
 		os.Exit(exitCode)
 	}()
 
@@ -320,7 +321,7 @@ func main() {
 
 	prog, err := newProgram(os.Args, afero.NewOsFs(), os.Stdout, os.Stderr, false)
 	if prog == nil || err != nil {
-		exitCode = exitCodeArgFailure
+		exitCode = exitCodeConfigFailure
 
 		return
 	}
@@ -533,7 +534,7 @@ func (prog *program) run(ctx context.Context) (int, error) {
 			if errors.Is(err, errMirrorNotEmpty) {
 				fmt.Fprintf(prog.stderr, "fatal: failed creating mirror structure: %v\n", err)
 
-				return exitCodeModeFailure, fmt.Errorf("failed creating mirror structure: %w", err)
+				return exitCodeMirrNotEmpty, fmt.Errorf("failed creating mirror structure: %w", err)
 			}
 
 			if !errors.Is(err, context.Canceled) {
@@ -555,6 +556,18 @@ func (prog *program) run(ctx context.Context) (int, error) {
 		}
 	}
 
+	if prog.hasPartialFailures {
+		fmt.Fprintln(prog.stderr, "warning: mode has completed, but with partial failures; exiting...")
+
+		return exitCodePartialFailure, nil
+	}
+
+	if prog.hasUnmovedFiles {
+		fmt.Fprintln(prog.stderr, "warning: mode has completed, but with unmoved files; exiting...")
+
+		return exitCodeUnmovedFiles, nil
+	}
+
 	fmt.Fprintln(prog.stdout, "success: mode has completed; exiting...")
 
 	return exitCodeSuccess, nil
@@ -562,7 +575,7 @@ func (prog *program) run(ctx context.Context) (int, error) {
 
 func (prog *program) walkError(err error) error {
 	if prog.opts.SkipFailed {
-		partialFailure = true
+		prog.hasPartialFailures = true
 		fmt.Fprintf(prog.stderr, "skipped: %v\n", err)
 
 		return nil
@@ -708,7 +721,12 @@ func (prog *program) moveFiles(ctx context.Context) error {
 		}
 
 		if isExcluded(path, prog.opts.Excludes) {
-			fmt.Fprintf(prog.stderr, "skipped: %q (is among excluded)\n", path)
+			fmt.Fprintf(prog.stderr, "skipped: %q (src is among excluded)\n", path)
+
+			if !e.IsDir() {
+				prog.hasUnmovedFiles = true
+				prog.hasUnmovableFiles = true
+			}
 
 			return nil
 		}
@@ -724,6 +742,17 @@ func (prog *program) moveFiles(ctx context.Context) error {
 			fmt.Fprintf(prog.stderr, "skipped: %q (cannot move from mirror into mirror)\n", path)
 
 			return filepath.SkipDir
+		}
+
+		if isExcluded(movePath, prog.opts.Excludes) {
+			fmt.Fprintf(prog.stderr, "skipped: %q (dst is among excluded)\n", movePath)
+
+			if !e.IsDir() {
+				prog.hasUnmovedFiles = true
+				prog.hasUnmovableFiles = true
+			}
+
+			return nil
 		}
 
 		if e.IsDir() {
@@ -744,6 +773,7 @@ func (prog *program) moveFiles(ctx context.Context) error {
 		}
 
 		if _, err := prog.fsys.Stat(movePath); err == nil {
+			prog.hasUnmovedFiles = true
 			fmt.Fprintf(prog.stderr, "exists: %q -x-> %q (not overwriting)\n", path, movePath)
 
 			return nil

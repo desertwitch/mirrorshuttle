@@ -296,6 +296,177 @@ func TestRun_ValidMoveMode_Success(t *testing.T) {
 	require.Empty(t, stderr.String())
 }
 
+func TestRun_UnmovedFilesExitCode_Success(t *testing.T) {
+	t.Parallel()
+
+	fs := setupTestFs()
+	err := createDirStructure(fs, []string{"/mirror", "/real"})
+	require.NoError(t, err)
+
+	files := map[string]string{
+		"/mirror/file.txt": "content",
+		"/real/file.txt":   "content2",
+	}
+	err = createFiles(fs, files)
+	require.NoError(t, err)
+
+	var stdout, stderr bytes.Buffer
+	args := []string{"program", "--mode=move", "--mirror=/mirror", "--target=/real"}
+
+	prog, _ := newProgram(args, fs, &stdout, &stderr, false)
+	require.NotNil(t, prog)
+
+	exitCode, err := prog.run(t.Context())
+	require.NoError(t, err)
+
+	content, err := afero.ReadFile(fs, "/real/file.txt")
+	require.NoError(t, err)
+	require.Equal(t, "content2", string(content))
+
+	require.Equal(t, exitCodeUnmovedFiles, exitCode)
+	require.Contains(t, stderr.String(), "unmoved files")
+}
+
+func TestRun_UnmovedFilesExclusionSrcExitCode_Success(t *testing.T) {
+	t.Parallel()
+
+	fs := setupTestFs()
+	err := createDirStructure(fs, []string{"/mirror", "/real"})
+	require.NoError(t, err)
+
+	files := map[string]string{
+		"/mirror/exclude/file.txt": "content",
+		"/mirror/file.txt":         "content2",
+	}
+	err = createFiles(fs, files)
+	require.NoError(t, err)
+
+	var stdout, stderr bytes.Buffer
+	args := []string{"program", "--mode=move", "--mirror=/mirror", "--target=/real", "--exclude=/mirror/exclude"}
+
+	prog, _ := newProgram(args, fs, &stdout, &stderr, false)
+	require.NotNil(t, prog)
+
+	exitCode, err := prog.run(t.Context())
+	require.NoError(t, err)
+
+	content, err := afero.ReadFile(fs, "/real/file.txt")
+	require.NoError(t, err)
+	require.Equal(t, "content2", string(content))
+
+	_, err = fs.Stat("/real/exclude")
+	require.ErrorIs(t, err, os.ErrNotExist)
+
+	_, err = fs.Stat("/real/exclude/file.txt")
+	require.ErrorIs(t, err, os.ErrNotExist)
+
+	require.Equal(t, exitCodeUnmovedFiles, exitCode)
+	require.Contains(t, stderr.String(), "unmoved files")
+}
+
+func TestRun_UnmovedFilesExclusionDstExitCode_Success(t *testing.T) {
+	t.Parallel()
+
+	fs := setupTestFs()
+	err := createDirStructure(fs, []string{"/mirror", "/real"})
+	require.NoError(t, err)
+
+	files := map[string]string{
+		"/mirror/exclude/file.txt": "content",
+		"/mirror/file.txt":         "content2",
+	}
+	err = createFiles(fs, files)
+	require.NoError(t, err)
+
+	var stdout, stderr bytes.Buffer
+	args := []string{"program", "--mode=move", "--mirror=/mirror", "--target=/real", "--exclude=/real/exclude"}
+
+	prog, _ := newProgram(args, fs, &stdout, &stderr, false)
+	require.NotNil(t, prog)
+
+	exitCode, err := prog.run(t.Context())
+	require.NoError(t, err)
+
+	content, err := afero.ReadFile(fs, "/real/file.txt")
+	require.NoError(t, err)
+	require.Equal(t, "content2", string(content))
+
+	_, err = fs.Stat("/real/exclude")
+	require.ErrorIs(t, err, os.ErrNotExist)
+
+	_, err = fs.Stat("/real/exclude/file.txt")
+	require.ErrorIs(t, err, os.ErrNotExist)
+
+	require.Equal(t, exitCodeUnmovedFiles, exitCode)
+	require.Contains(t, stderr.String(), "unmoved files")
+}
+
+func TestRun_UnmovedFoldersExclusionSrcExitCode_Success(t *testing.T) {
+	t.Parallel()
+
+	fs := setupTestFs()
+	err := createDirStructure(fs, []string{"/mirror/exclude", "/real"})
+	require.NoError(t, err)
+
+	files := map[string]string{
+		"/mirror/file.txt": "content2",
+	}
+	err = createFiles(fs, files)
+	require.NoError(t, err)
+
+	var stdout, stderr bytes.Buffer
+	args := []string{"program", "--mode=move", "--mirror=/mirror", "--target=/real", "--exclude=/mirror/exclude"}
+
+	prog, _ := newProgram(args, fs, &stdout, &stderr, false)
+	require.NotNil(t, prog)
+
+	exitCode, err := prog.run(t.Context())
+	require.NoError(t, err)
+
+	content, err := afero.ReadFile(fs, "/real/file.txt")
+	require.NoError(t, err)
+	require.Equal(t, "content2", string(content))
+
+	_, err = fs.Stat("/real/exclude")
+	require.ErrorIs(t, err, os.ErrNotExist)
+
+	require.Equal(t, exitCodeSuccess, exitCode)
+	require.Contains(t, stderr.String(), "skipped:")
+}
+
+func TestRun_UnmovedFoldersExclusionDstExitCode_Success(t *testing.T) {
+	t.Parallel()
+
+	fs := setupTestFs()
+	err := createDirStructure(fs, []string{"/mirror/exclude", "/real"})
+	require.NoError(t, err)
+
+	files := map[string]string{
+		"/mirror/file.txt": "content2",
+	}
+	err = createFiles(fs, files)
+	require.NoError(t, err)
+
+	var stdout, stderr bytes.Buffer
+	args := []string{"program", "--mode=move", "--mirror=/mirror", "--target=/real", "--exclude=/real/exclude"}
+
+	prog, _ := newProgram(args, fs, &stdout, &stderr, false)
+	require.NotNil(t, prog)
+
+	exitCode, err := prog.run(t.Context())
+	require.NoError(t, err)
+
+	content, err := afero.ReadFile(fs, "/real/file.txt")
+	require.NoError(t, err)
+	require.Equal(t, "content2", string(content))
+
+	_, err = fs.Stat("/real/exclude")
+	require.ErrorIs(t, err, os.ErrNotExist)
+
+	require.Equal(t, exitCodeSuccess, exitCode)
+	require.Contains(t, stderr.String(), "skipped:")
+}
+
 func TestRun_ValidInitMode_CtxCancel_Error(t *testing.T) {
 	t.Parallel()
 
@@ -463,7 +634,7 @@ func TestRun_TargetNotExistForMove_Error(t *testing.T) {
 	require.Contains(t, stderr.String(), errTargetNotExist.Error())
 }
 
-func TestRun_InitWithNonEmptyMirror_Error(t *testing.T) {
+func TestRun_InitNonEmptyMirrorExitCode_Error(t *testing.T) {
 	t.Parallel()
 
 	fs := setupTestFs()
@@ -488,7 +659,7 @@ func TestRun_InitWithNonEmptyMirror_Error(t *testing.T) {
 	exitCode, err := prog.run(t.Context())
 	require.ErrorIs(t, err, errMirrorNotEmpty)
 
-	require.Equal(t, exitCodeModeFailure, exitCode)
+	require.Equal(t, exitCodeMirrNotEmpty, exitCode)
 	require.Contains(t, stderr.String(), errMirrorNotEmpty.Error())
 }
 
@@ -872,8 +1043,9 @@ func TestCopyAndRemove_DstTmpFileExists_Success(t *testing.T) {
 	require.ErrorIs(t, err, os.ErrNotExist)
 }
 
-func TestWalkError_SkipFailedTrue_Success(t *testing.T) { //nolint:paralleltest
-	// Do not run this test in parallel due to global partialFailure.
+func TestWalkError_SkipFailedTrue_Success(t *testing.T) {
+	t.Parallel()
+
 	fs := setupTestFs()
 	var stderr bytes.Buffer
 
@@ -881,18 +1053,17 @@ func TestWalkError_SkipFailedTrue_Success(t *testing.T) { //nolint:paralleltest
 	prog := setupTestProgram(fs, opts)
 	prog.stderr = &stderr
 
-	partialFailure = false // reset
-
 	err := errors.New("mock error")
 	result := prog.walkError(err)
 
 	require.NoError(t, result)
-	require.True(t, partialFailure)
+	require.True(t, prog.hasPartialFailures)
 	require.Contains(t, stderr.String(), "skipped: mock error")
 }
 
-func TestWalkError_SkipFailedFalse_Error(t *testing.T) { //nolint:paralleltest
-	// Do not run this test in parallel due to global partialFailure.
+func TestWalkError_SkipFailedFalse_Error(t *testing.T) {
+	t.Parallel()
+
 	fs := setupTestFs()
 	var stderr bytes.Buffer
 
@@ -900,13 +1071,11 @@ func TestWalkError_SkipFailedFalse_Error(t *testing.T) { //nolint:paralleltest
 	prog := setupTestProgram(fs, opts)
 	prog.stderr = &stderr
 
-	partialFailure = false // reset
-
 	mockErr := errors.New("real error")
 	result := prog.walkError(mockErr)
 
 	require.Equal(t, mockErr, result)
-	require.False(t, partialFailure)
+	require.False(t, prog.hasPartialFailures)
 	require.Empty(t, stderr.String())
 }
 
