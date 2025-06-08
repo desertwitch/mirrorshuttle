@@ -58,6 +58,11 @@ system locations; ensure they are executable by running `chmod +x` before use.
 		it will be removed and re-created with the latest structure. If any
 		files are detected, the operation will fail with a specific return code.
 
+	--config string
+		Optional. Path to a YAML configuration file with any CLI arguments.
+		Exception: `--mode` argument must always be specified via command-line.
+		Direct CLI arguments always override values set via configuration file.
+
 	--mirror string
 		Required. Absolute path to the mirror structure. This is where mirrored
 		directories will be created and from where files will be moved. It can
@@ -100,11 +105,6 @@ system locations; ensure they are executable by running `chmod +x` before use.
 
 		Default: false
 
-	--config string
-		Path to a YAML configuration file specifying the same field names.
-		CLI flags always override any values set in the configuration file.
-		Exception: `--mode` argument must always be specified via command-line.
-
 # YAML CONFIGURATION EXAMPLE
 
 	mirror: /mirror/path
@@ -125,7 +125,7 @@ Invalid configurations (unknown or malformed fields) are rejected at runtime.
   - `1`: Failure
   - `2`: Partial Failure (with `--skip-failed`)
   - `3`: Mirror folder contains unmoved files (with `--mode=init`)
-  - `4`: Unmoved files due to existing target files (with `--mode=move`)
+  - `4`: Unmoved files due to conflicting target files (with `--mode=move`)
   - `5`: Invalid command-line arguments and/or configuration file provided
 
 # IMPLEMENTATION
@@ -213,21 +213,16 @@ package main
 
 import (
 	"context"
-	"encoding/hex"
 	"errors"
 	"flag"
 	"fmt"
 	"io"
 	"os"
 	"os/signal"
-	"path/filepath"
-	"strings"
 	"syscall"
 	"time"
 
 	"github.com/spf13/afero"
-	"github.com/zeebo/blake3"
-	"gopkg.in/yaml.v3"
 )
 
 const (
@@ -243,7 +238,7 @@ const (
 )
 
 var (
-	/* Version is the application's version (filled in during compilation). */
+	// Version is the application's version (filled in during compilation).
 	Version string
 
 	errArgConfigMalformed     = errors.New("--config yaml file is malformed")
@@ -287,20 +282,6 @@ type programOptions struct {
 	DryRun     bool       `yaml:"dry-run"`
 }
 
-type excludeArg []string
-
-func (s *excludeArg) String() string {
-	return fmt.Sprint(*s)
-}
-
-func (s *excludeArg) Set(value string) error {
-	cleanPath := filepath.Clean(strings.TrimSpace(value))
-
-	*s = append(*s, cleanPath)
-
-	return nil
-}
-
 func main() {
 	var exitCode int
 
@@ -308,7 +289,7 @@ func main() {
 		os.Exit(exitCode)
 	}()
 
-	fmt.Fprintf(os.Stdout, "MirrorShuttle (v%s) - Keep your organization, ditch the ransomware.\n", Version)
+	fmt.Fprintf(os.Stdout, "MirrorShuttle (v%s) - Keep your organization, ditch the risks.\n", Version)
 	fmt.Fprintf(os.Stdout, "(c) 2025 - desertwitch (Rysz) / License: GNU General Public License v2\n\n")
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -389,138 +370,6 @@ func newProgram(cliArgs []string, fsys afero.Fs, stdout io.Writer, stderr io.Wri
 	return prog, nil
 }
 
-func (prog *program) parseArgs(cliArgs []string) error {
-	var (
-		yamlFile string
-		yamlOpts programOptions
-	)
-
-	if !prog.testMode {
-		prog.flags = flag.NewFlagSet("prod", flag.ExitOnError)
-	} else {
-		prog.flags = flag.NewFlagSet("test", flag.ContinueOnError)
-	}
-
-	prog.flags.SetOutput(prog.stderr)
-	prog.flags.Usage = func() {
-		fmt.Fprintf(prog.stderr, "usage: %q --mode=init|move --mirror=ABSPATH --target=ABSPATH\n", cliArgs[0])
-		fmt.Fprintf(prog.stderr, "\t\t[--exclude=ABSPATH] [--exclude=ABSPATH] [--direct] [--verify] [--skip-failed] [--dry-run]\n\n")
-		prog.flags.PrintDefaults()
-	}
-
-	prog.flags.StringVar(&prog.opts.Mode, "mode", "", "operation mode: 'init' or 'move'; always needed")
-	prog.flags.StringVar(&yamlFile, "config", "", "path to a yaml configuration file; used with the specified mode")
-	prog.flags.StringVar(&prog.opts.MirrorRoot, "mirror", "", "absolute path to the mirror structure to create; files will be moved *from* here")
-	prog.flags.StringVar(&prog.opts.RealRoot, "target", "", "absolute path to the real structure to mirror; files will be moved *to* here")
-	prog.flags.Var(&prog.opts.Excludes, "exclude", "absolute path to exclude; can be repeated multiple times")
-	prog.flags.BoolVar(&prog.opts.Direct, "direct", false, "use atomic rename when possible; fallback to copy and remove if it fails or crosses filesystems")
-	prog.flags.BoolVar(&prog.opts.Verify, "verify", false, "verify again the hash of a target file after moving it; requires an extra full read of the file")
-	prog.flags.BoolVar(&prog.opts.SkipFailed, "skip-failed", false, "do not exit on non-fatal failures; skip failed element and proceed instead")
-	prog.flags.BoolVar(&prog.opts.DryRun, "dry-run", false, "preview only; no changes are written to disk")
-
-	if err := prog.flags.Parse(cliArgs[1:]); err != nil {
-		return fmt.Errorf("failed parsing flags: %w", err)
-	}
-
-	setFlags := make(map[string]bool)
-	prog.flags.Visit(func(f *flag.Flag) {
-		setFlags[f.Name] = true
-	})
-
-	if yamlFile != "" {
-		f, err := prog.fsys.Open(yamlFile)
-		if err != nil {
-			return fmt.Errorf("%w: %w", errArgConfigMissing, err)
-		}
-		defer f.Close()
-
-		dec := yaml.NewDecoder(f)
-		dec.KnownFields(true)
-
-		if err := dec.Decode(&yamlOpts); err != nil {
-			return fmt.Errorf("%w: %w", errArgConfigMalformed, err)
-		}
-	}
-
-	if !setFlags["mirror"] {
-		prog.opts.MirrorRoot = yamlOpts.MirrorRoot
-	}
-	if !setFlags["target"] {
-		prog.opts.RealRoot = yamlOpts.RealRoot
-	}
-	if !setFlags["exclude"] {
-		for _, p := range yamlOpts.Excludes {
-			/* Since we established no excludes were given, easier to just append to nil-slice */
-			prog.opts.Excludes = append(prog.opts.Excludes, filepath.Clean(strings.TrimSpace(p)))
-		}
-	}
-	if !setFlags["direct"] {
-		prog.opts.Direct = yamlOpts.Direct
-	}
-	if !setFlags["verify"] {
-		prog.opts.Verify = yamlOpts.Verify
-	}
-	if !setFlags["skip-failed"] {
-		prog.opts.SkipFailed = yamlOpts.SkipFailed
-	}
-	if !setFlags["dry-run"] {
-		prog.opts.DryRun = yamlOpts.DryRun
-	}
-
-	return nil
-}
-
-func (prog *program) validateOpts() error {
-	if prog.opts.Mode != "init" && prog.opts.Mode != "move" {
-		return errArgModeMismatch
-	}
-
-	if prog.opts.MirrorRoot == "" || prog.opts.RealRoot == "" {
-		return errArgMissingMirrorTarget
-	}
-
-	prog.opts.MirrorRoot = filepath.Clean(strings.TrimSpace(prog.opts.MirrorRoot))
-	prog.opts.RealRoot = filepath.Clean(strings.TrimSpace(prog.opts.RealRoot))
-
-	if prog.opts.MirrorRoot == prog.opts.RealRoot {
-		return errArgMirrorTargetSame
-	}
-
-	if !filepath.IsAbs(prog.opts.MirrorRoot) || !filepath.IsAbs(prog.opts.RealRoot) {
-		return errArgMirrorTargetNotAbs
-	}
-
-	if len(prog.opts.Excludes) > 0 {
-		for _, p := range prog.opts.Excludes {
-			if !filepath.IsAbs(p) {
-				return fmt.Errorf("%w: %q", errArgExcludePathNotAbs, p)
-			}
-		}
-	}
-
-	return nil
-}
-
-func (prog *program) printOpts() error {
-	out, err := yaml.Marshal(prog.opts)
-	if err != nil {
-		return fmt.Errorf("failed printing configuration: %w", err)
-	}
-
-	fmt.Fprintf(prog.stdout, "configuration for '--mode=%s':\n", prog.opts.Mode)
-
-	lines := strings.SplitSeq(string(out), "\n")
-	for line := range lines {
-		if line != "" {
-			fmt.Fprintf(prog.stdout, "\t%s\n", line)
-		}
-	}
-
-	fmt.Fprintln(prog.stdout)
-
-	return nil
-}
-
 func (prog *program) run(ctx context.Context) (int, error) {
 	if prog.opts.DryRun {
 		fmt.Fprintln(prog.stderr, "warning: running in dry mode (no changes will be made)")
@@ -556,6 +405,11 @@ func (prog *program) run(ctx context.Context) (int, error) {
 		}
 	}
 
+	if prog.hasUnmovableFiles {
+		fmt.Fprintln(prog.stderr, "warning: there are unmovable files in the mirror structure (due to --exclude paths)")
+		fmt.Fprintln(prog.stderr, "warning: resolve these unmovable files, otherwise future --mode=init executions may fail")
+	}
+
 	if prog.hasPartialFailures {
 		fmt.Fprintln(prog.stderr, "warning: mode has completed, but with partial failures; exiting...")
 
@@ -571,407 +425,4 @@ func (prog *program) run(ctx context.Context) (int, error) {
 	fmt.Fprintln(prog.stdout, "success: mode has completed; exiting...")
 
 	return exitCodeSuccess, nil
-}
-
-func (prog *program) walkError(err error) error {
-	if prog.opts.SkipFailed {
-		prog.hasPartialFailures = true
-		fmt.Fprintf(prog.stderr, "skipped: %v\n", err)
-
-		return nil
-	}
-
-	return err
-}
-
-func (prog *program) createMirrorStructure(ctx context.Context) error {
-	if _, err := prog.fsys.Stat(prog.opts.RealRoot); errors.Is(err, os.ErrNotExist) {
-		return fmt.Errorf("%w: %q", errTargetNotExist, prog.opts.RealRoot)
-	} else if err != nil {
-		return fmt.Errorf("failed to stat: %q (%w)", prog.opts.RealRoot, err)
-	}
-
-	mirrorParent := filepath.Dir(prog.opts.MirrorRoot)
-	if e, err := prog.fsys.Stat(mirrorParent); err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			return fmt.Errorf("%w: %q (%w)", errMirrorParentNotExist, mirrorParent, err)
-		}
-
-		return fmt.Errorf("failed to stat: %q (%w)", mirrorParent, err)
-	} else if !e.IsDir() {
-		return fmt.Errorf("%w: %q", errMirrorParentNotDir, mirrorParent)
-	}
-
-	if _, err := prog.fsys.Stat(prog.opts.MirrorRoot); err == nil {
-		fmt.Fprintln(prog.stdout, "testing if the existing mirror structure is empty...")
-
-		empty, err := prog.isEmptyStructure(ctx, prog.opts.MirrorRoot)
-		if err != nil {
-			return fmt.Errorf("failed checking for emptiness: %q (%w)", prog.opts.MirrorRoot, err)
-		} else if !empty {
-			return errMirrorNotEmpty
-		}
-
-		if prog.opts.DryRun {
-			fmt.Fprintf(prog.stdout, "dry: remove: %q\n", prog.opts.MirrorRoot)
-		} else {
-			if err := prog.fsys.RemoveAll(prog.opts.MirrorRoot); err != nil {
-				return fmt.Errorf("failed to remove: %q (%w)", prog.opts.MirrorRoot, err)
-			}
-			fmt.Fprintf(prog.stdout, "removed: %q\n", prog.opts.MirrorRoot)
-		}
-	} else if !errors.Is(err, os.ErrNotExist) {
-		return fmt.Errorf("failed to stat: %q (%w)", prog.opts.MirrorRoot, err)
-	}
-
-	if prog.opts.DryRun {
-		fmt.Fprintf(prog.stdout, "dry: create: %q\n", prog.opts.MirrorRoot)
-	} else {
-		if err := prog.fsys.Mkdir(prog.opts.MirrorRoot, dirBasePerm); err != nil {
-			return fmt.Errorf("failed to create: %q (%w)", prog.opts.MirrorRoot, err)
-		}
-		fmt.Fprintf(prog.stdout, "created: %q\n", prog.opts.MirrorRoot)
-	}
-
-	if err := afero.Walk(prog.fsys, prog.opts.RealRoot, func(path string, e os.FileInfo, err error) error {
-		if err := ctx.Err(); err != nil {
-			return fmt.Errorf("failed checking context: %w", err)
-		}
-
-		if err != nil {
-			if errors.Is(err, os.ErrNotExist) {
-				fmt.Fprintf(prog.stderr, "skipped: %q (no longer exists)\n", path)
-
-				return nil
-			}
-
-			return prog.walkError(fmt.Errorf("failed to walk: %q (%w)", path, err))
-		}
-
-		if !e.IsDir() {
-			return nil
-		}
-
-		if path == prog.opts.MirrorRoot {
-			fmt.Fprintf(prog.stderr, "skipped: %q (is mirror root)\n", path)
-
-			return filepath.SkipDir
-		}
-
-		if isExcluded(path, prog.opts.Excludes) {
-			fmt.Fprintf(prog.stderr, "skipped: %q (is among excluded)\n", path)
-
-			return filepath.SkipDir
-		}
-
-		relPath, err := filepath.Rel(prog.opts.RealRoot, path)
-		if err != nil {
-			return prog.walkError(fmt.Errorf("failed to get relative path: %q (%w)", path, err))
-		}
-
-		mirrorPath := filepath.Join(prog.opts.MirrorRoot, relPath)
-
-		if mirrorPath == prog.opts.MirrorRoot {
-			return nil /* already created */
-		}
-
-		if prog.opts.DryRun {
-			fmt.Fprintf(prog.stdout, "dry: create: %q\n", mirrorPath)
-		} else {
-			if err := prog.fsys.Mkdir(mirrorPath, dirBasePerm); err != nil {
-				return prog.walkError(fmt.Errorf("failed to create: %q (%w)", mirrorPath, err))
-			}
-			fmt.Fprintf(prog.stdout, "created: %q\n", mirrorPath)
-		}
-
-		return nil
-	}); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (prog *program) moveFiles(ctx context.Context) error {
-	if _, err := prog.fsys.Stat(prog.opts.MirrorRoot); errors.Is(err, os.ErrNotExist) {
-		return fmt.Errorf("%w: %q", errMirrorNotExist, prog.opts.MirrorRoot)
-	} else if err != nil {
-		return fmt.Errorf("failed to stat: %q (%w)", prog.opts.MirrorRoot, err)
-	}
-
-	if _, err := prog.fsys.Stat(prog.opts.RealRoot); errors.Is(err, os.ErrNotExist) {
-		return fmt.Errorf("%w: %q", errTargetNotExist, prog.opts.RealRoot)
-	} else if err != nil {
-		return fmt.Errorf("failed to stat: %q (%w)", prog.opts.RealRoot, err)
-	}
-
-	if err := afero.Walk(prog.fsys, prog.opts.MirrorRoot, func(path string, e os.FileInfo, err error) error {
-		if err := ctx.Err(); err != nil {
-			return fmt.Errorf("failed checking context: %w", err)
-		}
-
-		if err != nil {
-			if errors.Is(err, os.ErrNotExist) {
-				fmt.Fprintf(prog.stderr, "skipped: %q (no longer exists)\n", path)
-
-				return nil
-			}
-
-			return prog.walkError(fmt.Errorf("failed to walk: %q (%w)", path, err))
-		}
-
-		if isExcluded(path, prog.opts.Excludes) {
-			fmt.Fprintf(prog.stderr, "skipped: %q (src is among excluded)\n", path)
-
-			if !e.IsDir() {
-				prog.hasUnmovedFiles = true
-				prog.hasUnmovableFiles = true
-			}
-
-			return nil
-		}
-
-		relPath, err := filepath.Rel(prog.opts.MirrorRoot, path)
-		if err != nil {
-			return prog.walkError(fmt.Errorf("failed to get relative path: %q (%w)", path, err))
-		}
-
-		movePath := filepath.Join(prog.opts.RealRoot, relPath)
-
-		if movePath == prog.opts.MirrorRoot {
-			fmt.Fprintf(prog.stderr, "skipped: %q (cannot move from mirror into mirror)\n", path)
-
-			return filepath.SkipDir
-		}
-
-		if isExcluded(movePath, prog.opts.Excludes) {
-			fmt.Fprintf(prog.stderr, "skipped: %q (dst is among excluded)\n", movePath)
-
-			if !e.IsDir() {
-				prog.hasUnmovedFiles = true
-				prog.hasUnmovableFiles = true
-			}
-
-			return nil
-		}
-
-		if e.IsDir() {
-			if _, err := prog.fsys.Stat(movePath); errors.Is(err, os.ErrNotExist) {
-				if prog.opts.DryRun {
-					fmt.Fprintf(prog.stdout, "dry: create: %q\n", movePath)
-				} else {
-					if err := prog.fsys.Mkdir(movePath, dirBasePerm); err != nil {
-						return prog.walkError(fmt.Errorf("failed to create: %q (%w)", movePath, err))
-					}
-					fmt.Fprintf(prog.stdout, "created: %q\n", movePath)
-				}
-			} else if err != nil {
-				return prog.walkError(fmt.Errorf("failed to stat: %q (%w)", movePath, err))
-			}
-
-			return nil
-		}
-
-		if _, err := prog.fsys.Stat(movePath); err == nil {
-			prog.hasUnmovedFiles = true
-			fmt.Fprintf(prog.stderr, "exists: %q -x-> %q (not overwriting)\n", path, movePath)
-
-			return nil
-		} else if !errors.Is(err, os.ErrNotExist) {
-			return prog.walkError(fmt.Errorf("failed to stat: %q (%w)", movePath, err))
-		}
-
-		if prog.opts.DryRun {
-			fmt.Fprintf(prog.stdout, "dry: move: %q -> %q\n", path, movePath)
-		} else {
-			if prog.opts.Direct {
-				if err := prog.fsys.Rename(path, movePath); err == nil {
-					fmt.Fprintf(prog.stdout, "moved: %q -> %q (direct)\n", path, movePath)
-
-					return nil
-				}
-			}
-
-			if err := prog.copyAndRemove(path, movePath); err != nil {
-				return prog.walkError(fmt.Errorf("failed to move: %q -x-> %q (%w)", path, movePath, err))
-			}
-
-			fmt.Fprintf(prog.stdout, "moved: %q -> %q (c+r)\n", path, movePath)
-		}
-
-		return nil
-	}); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (prog *program) isEmptyStructure(ctx context.Context, path string) (bool, error) {
-	path = filepath.Clean(path)
-	empty := true
-
-	if err := afero.Walk(prog.fsys, path, func(subpath string, e os.FileInfo, err error) error {
-		if err := ctx.Err(); err != nil {
-			return fmt.Errorf("failed checking context: %w", err)
-		}
-
-		if err != nil {
-			return fmt.Errorf("failed to walk: %q (%w)", subpath, err)
-		}
-
-		if !e.IsDir() {
-			fmt.Fprintf(prog.stderr, "exists: %q", subpath)
-			empty = false
-		}
-
-		return nil
-	}); err != nil {
-		return false, err
-	}
-
-	if !empty {
-		return false, nil
-	}
-
-	return true, nil
-}
-
-//nolint:nonamedreturns
-func (prog *program) copyAndRemove(src string, dst string) (retErr error) {
-	var inputClosed, outputClosed, verifierClosed, dstWritten bool
-
-	in, err := prog.fsys.Open(src)
-	if err != nil {
-		return fmt.Errorf("failed to open src: %q (%w)", src, err)
-	}
-	defer func() {
-		if !inputClosed {
-			in.Close()
-		}
-	}()
-
-	tmp := dst + ".mirsht"
-
-	out, err := prog.fsys.Create(tmp)
-	if err != nil {
-		return fmt.Errorf("failed to open tmp: %q (%w)", tmp, err)
-	}
-	defer func() {
-		if !outputClosed {
-			out.Close()
-		}
-	}()
-
-	defer func() {
-		if retErr != nil { //nolint:nestif
-			if _, err := prog.fsys.Stat(src); err == nil {
-				if !dstWritten {
-					_ = prog.fsys.Remove(tmp)
-				} else {
-					_ = prog.fsys.Remove(dst)
-				}
-			} else if errors.Is(err, os.ErrNotExist) {
-				fmt.Fprintf(prog.stderr, "cleanup: not found: %q\n", src)
-				if !dstWritten {
-					fmt.Fprintf(prog.stderr, "cleanup: not removing: %q\n", tmp)
-				} else {
-					fmt.Fprintf(prog.stderr, "cleanup: not removing: %q\n", dst)
-				}
-			} else {
-				fmt.Fprintf(prog.stderr, "cleanup: failed to stat: %s (%v)\n", src, err)
-				fmt.Fprintf(prog.stderr, "cleanup: not removing: %q\n", src)
-				if !dstWritten {
-					fmt.Fprintf(prog.stderr, "cleanup: not removing: %q\n", tmp)
-				} else {
-					fmt.Fprintf(prog.stderr, "cleanup: not removing: %q\n", dst)
-				}
-			}
-		}
-	}()
-
-	srcHasher := blake3.New()
-	dstHasher := blake3.New()
-
-	multiReader := io.TeeReader(in, srcHasher)
-	multiWriter := io.MultiWriter(out, dstHasher)
-
-	if _, err := io.Copy(multiWriter, multiReader); err != nil {
-		return fmt.Errorf("failed during io: %w", err)
-	}
-
-	if err := out.Sync(); err != nil {
-		return fmt.Errorf("failed during sync: %w", err)
-	}
-
-	if err := in.Close(); err != nil {
-		return fmt.Errorf("failed to close src: %q (%w)", src, err)
-	}
-	inputClosed = true
-
-	if err := out.Close(); err != nil {
-		return fmt.Errorf("failed to close tmp: %q (%w)", tmp, err)
-	}
-	outputClosed = true
-
-	srcChecksum := hex.EncodeToString(srcHasher.Sum(nil))
-	dstChecksum := hex.EncodeToString(dstHasher.Sum(nil))
-
-	if srcChecksum != dstChecksum {
-		return fmt.Errorf("%w: %q (%s) != %q (%s)", errMemoryHashMismatch, src, srcChecksum, tmp, dstChecksum)
-	}
-
-	if err := prog.fsys.Rename(tmp, dst); err != nil {
-		return fmt.Errorf("failed to rename tmp to dst: %q -x-> %q (%w)", tmp, dst, err)
-	}
-	dstWritten = true
-
-	if prog.opts.Verify {
-		verifyHasher := blake3.New()
-
-		verifier, err := prog.fsys.Open(dst)
-		if err != nil {
-			return fmt.Errorf("failed to re-open dst for --verify pass: %q (%w)", dst, err)
-		}
-		defer func() {
-			if !verifierClosed {
-				verifier.Close()
-			}
-		}()
-
-		if _, err := io.Copy(verifyHasher, verifier); err != nil {
-			return fmt.Errorf("failed to re-read dst for --verify pass: %q (%w)", dst, err)
-		}
-
-		if err := verifier.Close(); err != nil {
-			return fmt.Errorf("failed to close dst after --verify pass: %q (%w)", dst, err)
-		}
-		verifierClosed = true
-
-		verifyChecksum := hex.EncodeToString(verifyHasher.Sum(nil))
-		if verifyChecksum != srcChecksum {
-			return fmt.Errorf("%w: %q (%s) != %q (%s)", errVerifyHashMismatch, src, srcChecksum, dst, verifyChecksum)
-		}
-	}
-
-	if err := prog.fsys.Remove(src); err != nil {
-		return fmt.Errorf("failed to remove src (after move): %q (%w)", src, err)
-	}
-
-	return nil
-}
-
-func isExcluded(path string, excludes []string) bool {
-	path = filepath.Clean(path)
-
-	for _, excl := range excludes {
-		if path == excl {
-			return true
-		}
-		if rel, err := filepath.Rel(excl, path); err == nil && !strings.HasPrefix(rel, "..") {
-			return true
-		}
-	}
-
-	return false
 }

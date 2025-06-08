@@ -1,7 +1,7 @@
 <div align="center">
     <img alt="Logo" src="assets/mirrorshuttle.png" width="260">
     <h1>MirrorShuttle</h1>
-    <p>Keep your organization, ditch the ransomware.</p>
+    <p>Keep your organization, ditch the risks.</p>
 </div>
 
 <div align="center">
@@ -82,6 +82,11 @@ system locations; ensure they are executable by running `chmod +x` before use.
         it will be removed and re-created with the latest structure. If any
         files are detected, the operation will fail with a specific return code.
 
+    --config string
+        Optional. Path to a YAML configuration file with any CLI arguments.
+        Exception: `--mode` argument must always be specified via command-line.
+        Direct CLI arguments always override values set via configuration file.
+
     --mirror string
         Required. Absolute path to the mirror structure. This is where mirrored
         directories will be created and from where files will be moved. It can
@@ -124,11 +129,6 @@ system locations; ensure they are executable by running `chmod +x` before use.
 
         Default: false
 
-    --config string
-        Path to a YAML configuration file specifying the same field names.
-        CLI flags always override any values set in the configuration file.
-        Exception: `--mode` argument must always be specified via command-line.
-
 #### YAML CONFIGURATION EXAMPLE
 
     mirror: /mirror/path
@@ -149,7 +149,7 @@ Invalid configurations (unknown or malformed fields) are rejected at runtime.
   - `1`: Failure
   - `2`: Partial Failure (with `--skip-failed`)
   - `3`: Mirror folder contains unmoved files (with `--mode=init`)
-  - `4`: Unmoved files due to existing target files (with `--mode=move`)
+  - `4`: Unmoved files due to conflicting target files (with `--mode=move`)
   - `5`: Invalid command-line arguments and/or configuration file provided
 
 #### IMPLEMENTATION
