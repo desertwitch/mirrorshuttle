@@ -1,7 +1,7 @@
 <div align="center">
     <img alt="Logo" src="assets/mirrorshuttle.png" width="260">
     <h1>MirrorShuttle</h1>
-    <p>Keep your structure, ditch the risk.</p>
+    <p>Keep your organization, ditch the ransomware.</p>
 </div>
 
 <div align="center">
@@ -204,8 +204,16 @@ are explicitly safe and in a known-consistent state. As a result, even minor
 issues can cause the process to halt, but this behavior ensures users retain
 full control over the outcome and can take corrective action with confidence.
 
-Any important information is written to standard error (stderr), while verbose
-operational information is written to standard output (stdout).
+The program is intentionally designed not to be run as root. All operations are
+expected to be performed under a regular user account. When moving files back
+into the target structure, ownership of those files will reflect the user
+executing the tool. Additionally, file and directory permissions are created
+respecting the environments's current `umask`, ensuring predictable behavior
+across environments without requiring privileged access.
+
+All non-routine messages - including warnings, errors, and anything requiring
+attention - are written to standard error (`stderr`). All routine operational
+output is written to standard output (`stdout`).
 
 #### POSSIBLE USE CASES IN PRODUCTION
 

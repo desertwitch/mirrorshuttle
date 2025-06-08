@@ -180,8 +180,16 @@ are explicitly safe and in a known-consistent state. As a result, even minor
 issues can cause the process to halt, but this behavior ensures users retain
 full control over the outcome and can take corrective action with confidence.
 
-Any important information is written to standard error (stderr), while verbose
-operational information is written to standard output (stdout).
+The program is intentionally designed not to be run as root. All operations are
+expected to be performed under a regular user account. When moving files back
+into the target structure, ownership of those files will reflect the user
+executing the tool. Additionally, file and directory permissions are created
+respecting the environments's current `umask`, ensuring predictable behavior
+across environments without requiring privileged access.
+
+All non-routine messages - including warnings, errors, and anything requiring
+attention - are written to standard error (`stderr`). All routine operational
+output is written to standard output (`stdout`).
 
 # POSSIBLE USE CASES IN PRODUCTION
 
@@ -299,8 +307,8 @@ func main() {
 		os.Exit(exitCode)
 	}()
 
-	fmt.Fprintf(os.Stderr, "MirrorShuttle (v%s) - Keep your structure, ditch the risk.\n", Version)
-	fmt.Fprintf(os.Stderr, "(c) 2025 - desertwitch (Rysz) / GNU General Public License v2\n\n")
+	fmt.Fprintf(os.Stdout, "MirrorShuttle (v%s) - Keep your organization, ditch the ransomware.\n", Version)
+	fmt.Fprintf(os.Stdout, "(c) 2025 - desertwitch (Rysz) / License: GNU General Public License v2\n\n")
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -329,7 +337,7 @@ func main() {
 		return
 
 	case <-sigChan:
-		fmt.Fprintln(os.Stderr, "received interrupt signal; shutting down (waiting up to 60s)...")
+		fmt.Fprintln(os.Stderr, "warning: received interrupt signal; shutting down (waiting up to 60s)...")
 		cancel()
 
 		select {
@@ -340,7 +348,7 @@ func main() {
 
 		case <-time.After(exitTimeout):
 			exitCode = exitCodeFailure
-			fmt.Fprintln(os.Stderr, "timed out while waiting for program exit; killing...")
+			fmt.Fprintln(os.Stderr, "fatal: timed out while waiting for program exit; killing...")
 
 			return
 		}
@@ -783,7 +791,7 @@ func (prog *program) isEmptyStructure(ctx context.Context, path string) (bool, e
 		}
 
 		if !e.IsDir() {
-			fmt.Fprintf(prog.stderr, "not-empty: %q", subpath)
+			fmt.Fprintf(prog.stderr, "exists: %q", subpath)
 			empty = false
 		}
 
