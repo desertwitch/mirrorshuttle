@@ -4,8 +4,9 @@ BINARY = mirrorshuttle
 SRC_DIR = .
 
 VERSION := $(shell \
-  git describe --tags --exact-match 2>/dev/null | sed 's/^v//' || \
-  git rev-parse --short=7 HEAD)
+  tag=$$(git describe --tags --exact-match 2>/dev/null); \
+  if [ -n "$$tag" ]; then echo $$tag | sed 's/^v//'; \
+  else git rev-parse --short=7 HEAD; fi)
 
 .PHONY: all $(BINARY) check clean debug help info lint test test-coverage vendor
 
