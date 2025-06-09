@@ -27,7 +27,7 @@ func (prog *program) createMirrorStructure(ctx context.Context) error {
 
 		return fmt.Errorf("failed to stat: %q (%w)", mirrorParent, err)
 	} else if !e.IsDir() {
-		// The mirror root's parent is not a folder, we cannot create the mirror root inside.
+		// The mirror root's parent is not a directory, we cannot create the mirror root inside.
 		return fmt.Errorf("%w: %q", errMirrorParentNotDir, mirrorParent)
 	}
 

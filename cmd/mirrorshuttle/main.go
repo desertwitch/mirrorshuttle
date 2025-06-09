@@ -20,8 +20,8 @@ The tool operates in two distinct operational modes, `init` and `move`:
     directory itself, in which case it will be excluded from the mirror process.
 
   - `move` transfers files that were added to the mirror back into the original
-    target directory, preserving the folder structure. It ensures file integrity
-    using BLAKE3 checksums and, when possible, uses atomic renames for
+    target directory, preserving the directory structure. It ensures file
+    integrity using BLAKE3 checksums and, when possible, uses atomic renames for
     efficiency. If a direct rename isn’t possible (e.g., across filesystems), it
     falls back to a safe copy-and-remove strategy.
 
@@ -54,7 +54,7 @@ system locations; ensure they are executable by running `chmod +x` before use.
 	--mode [init|move]
 		Required. Mode of operation for the program.
 
-		In `--mode=init` the `--mirror` folder must not contain any files, as
+		In `--mode=init` the `--mirror` directory must not contain any files, as
 		it will be removed and re-created with the latest structure. If any
 		files are detected, the operation will fail with a specific return code.
 
@@ -66,7 +66,7 @@ system locations; ensure they are executable by running `chmod +x` before use.
 	--mirror string
 		Required. Absolute path to the mirror structure. This is where mirrored
 		directories will be created and from where files will be moved. It can
-		be a subfolder of `--target`, and will be excluded from being mirrored.
+		be a sub-directory of `--target`, and is excluded from being mirrored.
 
 	--target string
 		Required. Absolute path to the real (target) structure. This is the
@@ -137,7 +137,7 @@ Invalid configurations (unknown or malformed fields) are rejected at runtime.
   - `0`: Success
   - `1`: Failure
   - `2`: Partial Failure (with `--skip-failed`)
-  - `3`: Mirror folder contains unmoved files (with `--mode=init`)
+  - `3`: Mirror directory contains unmoved files (with `--mode=init`)
   - `4`: Unmoved files due to conflicting target files (with `--mode=move`)
   - `5`: Invalid command-line arguments and/or configuration file provided
 
@@ -145,8 +145,8 @@ Invalid configurations (unknown or malformed fields) are rejected at runtime.
 
 An example implementation could be a RAID system that has all user "shares"
 inside `/mnt/user`, but only `/mnt/user/incoming` writable from the outside
-world (e.g., via Samba). The other folders of `/mnt/user` are read-only to the
-outside world and are themselves readable data archives that do not change.
+world (e.g., via Samba). The other directories of `/mnt/user` are read-only to
+the outside world and are themselves readable data archives that do not change.
 
 The user wants to prepare data within the `/mnt/user/incoming` structure only,
 but also organize where it will end up in the protected archival structures
@@ -170,11 +170,12 @@ hence runs the initialization command (again) after finishing their cleanup:
 	mirrorshuttle --mode=init --mirror=/mnt/user/incoming --target=/mnt/user
 
 They could also run this command as part of their cron job, after the respective
-`--mode=move` operation, ensuring that their mirror folder is always up to date.
+`--mode=move` operation, ensuring that their mirror directory is always up to
+date.
 
-They understand that if folders were removed in the `--target` structure,
+They understand that if directories were removed in the `--target` structure,
 and `--mode=init` was not run again before the next `--mode=move`, any removed
-folders would be re-created. This is why `--target` locations should remain
+directories would be re-created. This is why `--target` locations should remain
 static and not be modified without a follow-up re-running of `--mode=init`.
 
 # DESIGN CHOICES AND LIMITATIONS
@@ -182,8 +183,8 @@ static and not be modified without a follow-up re-running of `--mode=init`.
 mirrorshuttle assumes the `--target` location to be relatively static, in which
 case `--mode=init` calls should not need to be frequent (if at all). If the
 target structure changes outside of mirrorshuttle's operation, `--mode=init` can
-mirror again any new structural changes, but will need the `--mirror` folder to
-not contain unmoved files, otherwise requiring manual resolution by the user.
+mirror again any new structural changes, but will need the `--mirror` directory
+to not contain unmoved files, otherwise requiring manual resolution by the user.
 
 The program is built to automate workflows as much as possible - without
 compromising safety. If it cannot proceed safely, it will fail early with clear,

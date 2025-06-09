@@ -545,7 +545,7 @@ func TestRun_UnmovedFilesExclusionDst_Success(t *testing.T) {
 	require.Contains(t, stderr.String(), "skipped")
 }
 
-func TestRun_UnmovedFoldersExclusionSrc_Success(t *testing.T) {
+func TestRun_UnmovedDirExclusionSrc_Success(t *testing.T) {
 	t.Parallel()
 
 	fs := setupTestFs()
@@ -578,7 +578,7 @@ func TestRun_UnmovedFoldersExclusionSrc_Success(t *testing.T) {
 	require.Contains(t, stderr.String(), "skipped")
 }
 
-func TestRun_UnmovedFoldersExclusionDst_Success(t *testing.T) {
+func TestRun_UnmovedDirExclusionDst_Success(t *testing.T) {
 	t.Parallel()
 
 	fs := setupTestFs()

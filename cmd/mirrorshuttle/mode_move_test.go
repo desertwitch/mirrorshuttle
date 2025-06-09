@@ -209,7 +209,7 @@ func TestMoveFiles_WithDirExcludes_Success(t *testing.T) {
 	_, err = fs.Stat("/real/include.txt")
 	require.NoError(t, err)
 
-	// Verify excluded folder is not created.
+	// Verify excluded directory is not created.
 	_, err = fs.Stat("/real/exclude")
 	require.ErrorIs(t, err, os.ErrNotExist)
 
