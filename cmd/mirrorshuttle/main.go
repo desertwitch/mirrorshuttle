@@ -398,7 +398,7 @@ func (prog *program) run(ctx context.Context) (retExitCode int, retError error) 
 	}()
 
 	if prog.opts.DryRun {
-		prog.log.Warn("running in dry mode (no changes will be made)")
+		prog.log.Warn("running in dry mode - no changes will be made")
 	}
 
 	switch prog.opts.Mode {
@@ -407,7 +407,7 @@ func (prog *program) run(ctx context.Context) (retExitCode int, retError error) 
 
 		if err := prog.createMirrorStructure(ctx); err != nil {
 			if !errors.Is(err, context.Canceled) {
-				prog.log.Error("fatal: failed creating mirror structure:", "error", err)
+				prog.log.Error("fatal: failed creating mirror structure", "error", err)
 			}
 
 			if errors.Is(err, errMirrorNotEmpty) {
@@ -418,11 +418,11 @@ func (prog *program) run(ctx context.Context) (retExitCode int, retError error) 
 		}
 
 	case "move":
-		prog.log.Info("moving from mirror to real structure...")
+		prog.log.Info("checking for files to move...")
 
 		if err := prog.moveFiles(ctx); err != nil {
 			if !errors.Is(err, context.Canceled) {
-				prog.log.Error("fatal: failed moving to real structure:", "error", err)
+				prog.log.Error("fatal: failed moving to real structure", "error", err)
 			}
 
 			return exitCodeFailure, fmt.Errorf("failed moving to real structure: %w", err)

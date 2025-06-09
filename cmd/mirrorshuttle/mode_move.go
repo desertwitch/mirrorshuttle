@@ -37,7 +37,7 @@ func (prog *program) moveFiles(ctx context.Context) error {
 
 		if err != nil {
 			if errors.Is(err, os.ErrNotExist) {
-				prog.log.Warn("skipped (no longer exists):", "path", path)
+				prog.log.Warn("path skipped", "path", path, "reason", "no_longer_exists")
 
 				// An element has disappeared during the walk, skip it.
 				return nil
@@ -48,7 +48,7 @@ func (prog *program) moveFiles(ctx context.Context) error {
 		}
 
 		if isExcluded(path, prog.opts.Excludes) { // Check if the source path is excluded.
-			prog.log.Warn("skipped (src is among excluded):", "path", path)
+			prog.log.Warn("path skipped", "path", path, "reason", "is_user_excluded")
 
 			// The source path was among the user's excluded paths, skip it.
 			return nil
@@ -62,14 +62,14 @@ func (prog *program) moveFiles(ctx context.Context) error {
 		movePath := filepath.Join(prog.opts.RealRoot, relPath)
 
 		if movePath == prog.opts.MirrorRoot { // Check if target path is the mirror root.
-			prog.log.Warn("skipped (cannot move from mirror into mirror):", "path", path)
+			prog.log.Warn("path skipped", "path", movePath, "reason", "mirror_into_mirror")
 
 			// The target path is the mirror root, skip it (prevent insane recursion).
 			return filepath.SkipDir
 		}
 
 		if isExcluded(movePath, prog.opts.Excludes) { // Check if the target path is excluded.
-			prog.log.Warn("skipped (dst is among excluded):", "path", movePath)
+			prog.log.Warn("path skipped", "path", movePath, "reason", "is_user_excluded")
 
 			// The target path was among the user's excluded paths, skip it.
 			return nil
@@ -78,13 +78,13 @@ func (prog *program) moveFiles(ctx context.Context) error {
 		if e.IsDir() { // Handle directories.
 			if _, err := prog.fsys.Stat(movePath); errors.Is(err, os.ErrNotExist) { // Check if the target directory exists.
 				if prog.opts.DryRun {
-					prog.log.Info("[dry-mode] create:", "path", movePath)
+					prog.log.Info("[dry-mode] directory created", "path", movePath)
 				} else {
 					// Create the target directory, if it does not exist.
 					if err := prog.fsys.Mkdir(movePath, dirBasePerm); err != nil {
 						return prog.walkError(fmt.Errorf("failed to create: %q (%w)", movePath, err))
 					}
-					prog.log.Info("created:", "path", movePath)
+					prog.log.Info("directory created", "path", movePath)
 				}
 			} else if err != nil {
 				return prog.walkError(fmt.Errorf("failed to stat: %q (%w)", movePath, err))
@@ -95,7 +95,7 @@ func (prog *program) moveFiles(ctx context.Context) error {
 
 		if _, err := prog.fsys.Stat(movePath); err == nil { // Check if the target file exists.
 			prog.hasUnmovedFiles = true
-			prog.log.Warn("exists (not overwriting):", "src", path, "dst", movePath)
+			prog.log.Warn("target exists", "src", path, "dst", movePath, "action", "skipped")
 
 			// The target file exists; do not overwrite it, set unmoved files bit and skip it.
 			return nil
@@ -104,12 +104,12 @@ func (prog *program) moveFiles(ctx context.Context) error {
 		}
 
 		if prog.opts.DryRun {
-			prog.log.Info("[dry-mode] move:", "src", path, "dst", movePath)
+			prog.log.Info("[dry-mode] file moved", "src", path, "dst", movePath)
 		} else {
 			if prog.opts.Direct {
 				// Direct mode; attempt a rename syscall, otherwise copy and remove.
 				if err := prog.fsys.Rename(path, movePath); err == nil {
-					prog.log.Info("moved:", "mode", "direct", "src", path, "dst", movePath)
+					prog.log.Info("file moved", "mode", "direct", "src", path, "dst", movePath)
 
 					return nil
 				} // Rename syscall must have failed from here downwards.
@@ -120,7 +120,7 @@ func (prog *program) moveFiles(ctx context.Context) error {
 				return prog.walkError(fmt.Errorf("failed to move: %q -x-> %q (%w)", path, movePath, err))
 			}
 
-			prog.log.Info("moved:", "mode", "c+r", "src", path, "dst", movePath)
+			prog.log.Info("file moved", "mode", "c+r", "src", path, "dst", movePath)
 		}
 
 		return nil
@@ -151,12 +151,12 @@ func (prog *program) copyAndRemove(src string, dst string) (retErr error) {
 			if _, err := prog.fsys.Stat(src); err == nil {
 				_ = prog.fsys.Remove(workingFile)
 			} else if errors.Is(err, os.ErrNotExist) {
-				prog.log.Warn("cleanup: not found:", "path", src)
-				prog.log.Warn("cleanup: not removing:", "path", workingFile)
+				prog.log.Warn("cleanup: file not found", "path", src)
+				prog.log.Warn("cleanup: file not removed", "path", workingFile)
 			} else {
-				prog.log.Error("cleanup: failed to stat:", "path", src, "error", err)
-				prog.log.Warn("cleanup: not removing:", "path", src)
-				prog.log.Warn("cleanup: not removing:", "path", workingFile)
+				prog.log.Error("cleanup: failed to stat", "path", src, "error", err)
+				prog.log.Warn("cleanup: file not removed", "path", src)
+				prog.log.Warn("cleanup: file not removed", "path", workingFile)
 			}
 		}
 	}()

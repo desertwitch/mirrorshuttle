@@ -24,7 +24,7 @@ func (s *excludeArg) Set(value string) error {
 func (prog *program) walkError(err error) error {
 	if prog.opts.SkipFailed {
 		prog.hasPartialFailures = true
-		prog.log.Error("skipped:", "error", err)
+		prog.log.Error("path skipped", "error", err, "reason", "error_occurred")
 
 		return nil
 	}

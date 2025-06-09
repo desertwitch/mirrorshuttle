@@ -44,13 +44,13 @@ func (prog *program) createMirrorStructure(ctx context.Context) error {
 		}
 
 		if prog.opts.DryRun {
-			prog.log.Info("[dry-mode] remove:", "path", prog.opts.MirrorRoot)
+			prog.log.Info("[dry-mode] mirror directory removed", "path", prog.opts.MirrorRoot)
 		} else {
 			// The mirror root is empty, we can remove it safely, for later re-creation.
 			if err := prog.fsys.RemoveAll(prog.opts.MirrorRoot); err != nil {
 				return fmt.Errorf("failed to remove: %q (%w)", prog.opts.MirrorRoot, err)
 			}
-			prog.log.Info("removed:", "path", prog.opts.MirrorRoot)
+			prog.log.Info("mirror directory removed", "path", prog.opts.MirrorRoot)
 		}
 	} else if !errors.Is(err, os.ErrNotExist) {
 		return fmt.Errorf("failed to stat: %q (%w)", prog.opts.MirrorRoot, err)
@@ -58,12 +58,12 @@ func (prog *program) createMirrorStructure(ctx context.Context) error {
 
 	// The mirror root either does not exist or was empty and deleted, re-create it now.
 	if prog.opts.DryRun {
-		prog.log.Info("[dry-mode] create:", "path", prog.opts.MirrorRoot)
+		prog.log.Info("[dry-mode] mirror directory created", "path", prog.opts.MirrorRoot)
 	} else {
 		if err := prog.fsys.Mkdir(prog.opts.MirrorRoot, dirBasePerm); err != nil {
 			return fmt.Errorf("failed to create: %q (%w)", prog.opts.MirrorRoot, err)
 		}
-		prog.log.Info("created:", "path", prog.opts.MirrorRoot)
+		prog.log.Info("mirror directory created", "path", prog.opts.MirrorRoot)
 	}
 
 	// Walk the target root and re-create the directory structure inside the mirror root.
@@ -75,7 +75,7 @@ func (prog *program) createMirrorStructure(ctx context.Context) error {
 
 		if err != nil {
 			if errors.Is(err, os.ErrNotExist) {
-				prog.log.Warn("skipped (no longer exists):", "path", path)
+				prog.log.Warn("path skipped", "path", path, "reason", "no_longer_exists")
 
 				// An element has disappeared during the walk, skip it.
 				return nil
@@ -91,14 +91,14 @@ func (prog *program) createMirrorStructure(ctx context.Context) error {
 		}
 
 		if path == prog.opts.MirrorRoot { // Check if the walked path is the mirror root.
-			prog.log.Warn("skipped (is mirror root):", "path", path)
+			prog.log.Warn("path skipped", "path", path, "reason", "is_mirror_root")
 
 			// The mirror root can be contained within the target root, skip it.
 			return filepath.SkipDir
 		}
 
 		if isExcluded(path, prog.opts.Excludes) { // Check if the walked path is excluded.
-			prog.log.Warn("skipped (is among excluded):", "path", path)
+			prog.log.Warn("path skipped", "path", path, "reason", "is_user_excluded")
 
 			// The path was among the user's excluded paths, skip it.
 			return nil
@@ -117,13 +117,13 @@ func (prog *program) createMirrorStructure(ctx context.Context) error {
 		}
 
 		if prog.opts.DryRun {
-			prog.log.Info("[dry-mode] create:", "path", mirrorPath)
+			prog.log.Info("[dry-mode] directory created", "path", mirrorPath)
 		} else {
 			// Create the respective mirror path for the specific target path.
 			if err := prog.fsys.Mkdir(mirrorPath, dirBasePerm); err != nil {
 				return prog.walkError(fmt.Errorf("failed to create: %q (%w)", mirrorPath, err))
 			}
-			prog.log.Info("created:", "path", mirrorPath)
+			prog.log.Info("directory created", "path", mirrorPath)
 		}
 
 		return nil
@@ -153,7 +153,7 @@ func (prog *program) isEmptyStructure(ctx context.Context, path string) (bool, e
 
 		if !e.IsDir() {
 			// Output the file that was found, but also continue to get the full list.
-			prog.log.Warn("exists:", "path", subpath)
+			prog.log.Warn("unmoved file found", "path", subpath)
 			empty = false
 		}
 
