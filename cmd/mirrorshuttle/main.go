@@ -418,7 +418,7 @@ func (prog *program) run(ctx context.Context) (retExitCode int, retError error) 
 		}
 
 	case "move":
-		prog.log.Info("checking for files to move...")
+		prog.log.Info("checking the mirror for files to move...")
 
 		if err := prog.moveFiles(ctx); err != nil {
 			if !errors.Is(err, context.Canceled) {

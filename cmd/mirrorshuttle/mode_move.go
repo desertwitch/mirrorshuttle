@@ -95,7 +95,7 @@ func (prog *program) moveFiles(ctx context.Context) error {
 
 		if _, err := prog.fsys.Stat(movePath); err == nil { // Check if the target file exists.
 			prog.hasUnmovedFiles = true
-			prog.log.Warn("target exists", "src", path, "dst", movePath, "action", "skipped")
+			prog.log.Warn("target already exists", "src", path, "dst", movePath, "action", "skipped")
 
 			// The target file exists; do not overwrite it, set unmoved files bit and skip it.
 			return nil
