@@ -12,12 +12,10 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-func (prog *program) parseArgs(cliArgs []string) (slog.Handler, error) {
+func (prog *program) parseArgs(cliArgs []string) error {
 	var (
-		yamlFile   string
-		yamlOpts   programOptions
-		logHandler slog.Handler
-		logLevel   slog.Level = slog.LevelInfo
+		yamlFile string
+		yamlOpts programOptions
 	)
 
 	if !prog.testMode {
@@ -47,7 +45,7 @@ func (prog *program) parseArgs(cliArgs []string) (slog.Handler, error) {
 	prog.flags.BoolVar(&prog.opts.JSON, "json", false, "output all emitted logs in the JSON format; results can be read from stderr")
 
 	if err := prog.flags.Parse(cliArgs[1:]); err != nil {
-		return nil, fmt.Errorf("failed parsing flags: %w", err)
+		return fmt.Errorf("failed parsing flags: %w", err)
 	}
 
 	setFlags := make(map[string]bool)
@@ -58,7 +56,7 @@ func (prog *program) parseArgs(cliArgs []string) (slog.Handler, error) {
 	if yamlFile != "" {
 		f, err := prog.fsys.Open(yamlFile)
 		if err != nil {
-			return nil, fmt.Errorf("%w: %w", errArgConfigMissing, err)
+			return fmt.Errorf("%w: %w", errArgConfigMissing, err)
 		}
 		defer f.Close()
 
@@ -66,7 +64,7 @@ func (prog *program) parseArgs(cliArgs []string) (slog.Handler, error) {
 		dec.KnownFields(true)
 
 		if err := dec.Decode(&yamlOpts); err != nil {
-			return nil, fmt.Errorf("%w: %w", errArgConfigMalformed, err)
+			return fmt.Errorf("%w: %w", errArgConfigMalformed, err)
 		}
 	}
 
@@ -101,27 +99,7 @@ func (prog *program) parseArgs(cliArgs []string) (slog.Handler, error) {
 		prog.opts.JSON = yamlOpts.JSON
 	}
 
-	if prog.opts.LogLevel != "" {
-		lvl, err := parseLogLevel(prog.opts.LogLevel)
-		if err != nil {
-			return nil, err
-		}
-		logLevel = lvl
-	}
-
-	if prog.opts.JSON {
-		logHandler = slog.NewJSONHandler(prog.stderr, &slog.HandlerOptions{
-			Level: logLevel,
-		})
-	} else {
-		logHandler = tint.NewHandler(prog.stderr,
-			&tint.Options{
-				Level:      logLevel,
-				TimeFormat: time.TimeOnly,
-			})
-	}
-
-	return logHandler, nil
+	return nil
 }
 
 func (prog *program) validateOpts() error {
@@ -152,6 +130,12 @@ func (prog *program) validateOpts() error {
 		}
 	}
 
+	if prog.opts.LogLevel != "" {
+		if _, err := parseLogLevel(prog.opts.LogLevel); err != nil {
+			return fmt.Errorf("%w: %q", err, prog.opts.LogLevel)
+		}
+	}
+
 	return nil
 }
 
@@ -173,4 +157,27 @@ func (prog *program) printOpts() error {
 	fmt.Fprintln(prog.stdout)
 
 	return nil
+}
+
+func (prog *program) logHandler() slog.Handler {
+	var logHandler slog.Handler
+	var logLevel slog.Level = slog.LevelInfo
+
+	if prog.opts.LogLevel != "" {
+		logLevel, _ = parseLogLevel(prog.opts.LogLevel)
+	}
+
+	if prog.opts.JSON {
+		logHandler = slog.NewJSONHandler(prog.stderr, &slog.HandlerOptions{
+			Level: logLevel,
+		})
+	} else {
+		logHandler = tint.NewHandler(prog.stderr,
+			&tint.Options{
+				Level:      logLevel,
+				TimeFormat: time.TimeOnly,
+			})
+	}
+
+	return logHandler
 }

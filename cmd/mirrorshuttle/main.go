@@ -361,8 +361,7 @@ func newProgram(cliArgs []string, fsys afero.Fs, stdout io.Writer, stderr io.Wri
 		testMode: testMode,
 	}
 
-	handler, err := prog.parseArgs(cliArgs)
-	if err != nil {
+	if err := prog.parseArgs(cliArgs); err != nil {
 		fmt.Fprintf(prog.stderr, "fatal: failed to parse configuration: %v\n\n", err)
 		prog.flags.Usage()
 
@@ -383,7 +382,7 @@ func newProgram(cliArgs []string, fsys afero.Fs, stdout io.Writer, stderr io.Wri
 		return nil, fmt.Errorf("failed to print configuration: %w", err)
 	}
 
-	prog.log = slog.New(handler) // We use the log handler in the program.
+	prog.log = slog.New(prog.logHandler())
 
 	return prog, nil
 }

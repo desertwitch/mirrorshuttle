@@ -32,7 +32,7 @@ func TestParseArgs_Success(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, prog)
 
-	_, err = prog.parseArgs(args)
+	err = prog.parseArgs(args)
 	require.NoError(t, err)
 
 	require.Equal(t, "init", prog.opts.Mode)
@@ -68,7 +68,7 @@ json: true
 	require.NoError(t, err)
 	require.NotNil(t, prog)
 
-	_, err = prog.parseArgs(args)
+	err = prog.parseArgs(args)
 	require.NoError(t, err)
 
 	require.Equal(t, "move", prog.opts.Mode)
@@ -116,7 +116,7 @@ log-level: invalid
 	require.NoError(t, err)
 	require.NotNil(t, prog)
 
-	_, err = prog.parseArgs(args)
+	err = prog.parseArgs(args)
 	require.NoError(t, err)
 
 	require.Equal(t, "init", prog.opts.Mode)
@@ -157,9 +157,9 @@ func TestParseArgs_InvalidLogLevel_Error(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, prog)
 
-	args = append(args, "--log-level=test")
+	prog.opts.LogLevel = "bogus"
 
-	_, err = prog.parseArgs(args)
+	err = prog.validateOpts()
 	require.ErrorIs(t, err, errArgInvalidLogLevel)
 }
 
