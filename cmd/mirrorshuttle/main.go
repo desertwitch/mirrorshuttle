@@ -401,9 +401,9 @@ func (prog *program) run(ctx context.Context) (retExitCode int, retError error) 
 		if prog.opts.DryRun {
 			return
 		}
-		if syncer, ok := prog.fsys.(interface{ Sync() error }); ok {
+		if syncable, ok := prog.fsys.(interface{ Sync() error }); ok {
 			prog.log.Info("syncing filesystems...")
-			if err := syncer.Sync(); err == nil {
+			if err := syncable.Sync(); err == nil {
 				prog.log.Info("filesystems synced")
 			} else {
 				prog.log.Error("failed syncing filesystems", "error", err)
