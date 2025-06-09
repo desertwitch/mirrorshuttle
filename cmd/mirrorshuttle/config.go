@@ -14,8 +14,10 @@ import (
 
 func (prog *program) parseArgs(cliArgs []string) (slog.Handler, error) {
 	var (
-		yamlFile string
-		yamlOpts programOptions
+		yamlFile   string
+		yamlOpts   programOptions
+		logHandler slog.Handler
+		logLevel   slog.Level = slog.LevelInfo
 	)
 
 	if !prog.testMode {
@@ -27,7 +29,8 @@ func (prog *program) parseArgs(cliArgs []string) (slog.Handler, error) {
 	prog.flags.SetOutput(prog.stderr)
 	prog.flags.Usage = func() {
 		fmt.Fprintf(prog.stderr, "usage: %q --mode=init|move --mirror=ABSPATH --target=ABSPATH\n", cliArgs[0])
-		fmt.Fprintf(prog.stderr, "\t\t[--exclude=ABSPATH] [--exclude=ABSPATH] [--direct] [--verify] [--skip-failed] [--dry-run]\n\n")
+		fmt.Fprintf(prog.stderr, "\t[--exclude=ABSPATH] [--exclude=ABSPATH] [--direct] [--verify] [--skip-failed]\n")
+		fmt.Fprintf(prog.stderr, "\t[--dry-run] [--log-level=debug|info|warn|error] [--json]\n\n")
 		prog.flags.PrintDefaults()
 	}
 
@@ -40,6 +43,8 @@ func (prog *program) parseArgs(cliArgs []string) (slog.Handler, error) {
 	prog.flags.BoolVar(&prog.opts.Verify, "verify", false, "verify again the hash of a target file after moving it; requires an extra full read of the file")
 	prog.flags.BoolVar(&prog.opts.SkipFailed, "skip-failed", false, "do not exit on non-fatal failures; skip failed element and proceed instead")
 	prog.flags.BoolVar(&prog.opts.DryRun, "dry-run", false, "preview only; no changes are written to disk")
+	prog.flags.StringVar(&prog.opts.LogLevel, "log-level", "info", "decides the verbosity of emitted logs; debug, info, warn, error")
+	prog.flags.BoolVar(&prog.opts.JSON, "json", false, "output all emitted logs in the JSON format; results can be read from stderr")
 
 	if err := prog.flags.Parse(cliArgs[1:]); err != nil {
 		return nil, fmt.Errorf("failed parsing flags: %w", err)
@@ -89,12 +94,32 @@ func (prog *program) parseArgs(cliArgs []string) (slog.Handler, error) {
 	if !setFlags["dry-run"] {
 		prog.opts.DryRun = yamlOpts.DryRun
 	}
+	if !setFlags["log-level"] {
+		prog.opts.LogLevel = yamlOpts.LogLevel
+	}
+	if !setFlags["json"] {
+		prog.opts.JSON = yamlOpts.JSON
+	}
 
-	logHandler := tint.NewHandler(prog.stderr,
-		&tint.Options{
-			Level:      slog.LevelDebug,
-			TimeFormat: time.TimeOnly,
+	if prog.opts.LogLevel != "" {
+		lvl, err := parseLogLevel(prog.opts.LogLevel)
+		if err != nil {
+			return nil, err
+		}
+		logLevel = lvl
+	}
+
+	if prog.opts.JSON {
+		logHandler = slog.NewJSONHandler(prog.stderr, &slog.HandlerOptions{
+			Level: logLevel,
 		})
+	} else {
+		logHandler = tint.NewHandler(prog.stderr,
+			&tint.Options{
+				Level:      logLevel,
+				TimeFormat: time.TimeOnly,
+			})
+	}
 
 	return logHandler, nil
 }

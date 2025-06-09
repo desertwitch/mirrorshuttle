@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"errors"
+	"log/slog"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -83,4 +84,39 @@ func TestWalkError_SkipFailedFalse_Error(t *testing.T) {
 	require.Equal(t, mockErr, result)
 	require.False(t, prog.hasPartialFailures)
 	require.NotContains(t, stdout.String(), "skipped")
+}
+
+func TestParseLogLevel_Table(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		input       string
+		expected    slog.Level
+		expectError bool
+	}{
+		{"debug", slog.LevelDebug, false},
+		{" info ", slog.LevelInfo, false},
+		{"warn", slog.LevelWarn, false},
+		{"warning", slog.LevelWarn, false},
+		{"", slog.LevelInfo, true},
+		{"verbose", slog.LevelInfo, true},
+		{"none", slog.LevelInfo, true},
+		{"123", slog.LevelInfo, true},
+		{"error", slog.LevelError, false},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.input, func(t *testing.T) {
+			t.Parallel()
+
+			level, err := parseLogLevel(tc.input)
+
+			if tc.expectError {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+				require.Equal(t, tc.expected, level)
+			}
+		})
+	}
 }

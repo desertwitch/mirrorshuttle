@@ -79,8 +79,8 @@ system locations; ensure they are executable by running `chmod +x` before use.
 
 #### ARGUMENTS
 
-    --mode string
-        Required. Must be either "init" or "move".
+    --mode [init|move]
+        Required. Mode of operation for the program.
 
         In `--mode=init` the `--mirror` folder must not contain any files, as
         it will be removed and re-created with the latest structure. If any
@@ -133,6 +133,17 @@ system locations; ensure they are executable by running `chmod +x` before use.
 
         Default: false
 
+    --log-level [debug|info|warn|error]
+        Optional. Controls verbosity of the operational logs that are emitted.
+
+        Default: info
+
+    --json
+        Optional. Outputs the operational logs that are emitted in JSON format.
+        Allows for programmatic parsing of output from standard error (stderr).
+
+        Default: false
+
 #### YAML CONFIGURATION EXAMPLE
 
     mirror: /mirror/path
@@ -144,6 +155,8 @@ system locations; ensure they are executable by running `chmod +x` before use.
     verify: false
     skip-failed: false
     dry-run: false
+	log-level: info
+	json: false
 
 Invalid configurations (unknown or malformed fields) are rejected at runtime.
 
@@ -215,10 +228,6 @@ into the target structure, ownership of those files will reflect the user
 executing the tool. Additionally, file and directory permissions are created
 respecting the environment's current `umask`, ensuring predictable behavior
 across environments without requiring privileged access.
-
-All non-routine messages - including warnings, errors, and anything requiring
-attention - are written to standard error (`stderr`). All routine operational
-output is written to standard output (`stdout`).
 
 #### POSSIBLE USE CASES IN PRODUCTION
 

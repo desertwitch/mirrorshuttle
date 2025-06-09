@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log/slog"
 	"path/filepath"
 	"strings"
 )
@@ -44,4 +45,19 @@ func isExcluded(path string, excludes []string) bool {
 	}
 
 	return false
+}
+
+func parseLogLevel(levelStr string) (slog.Level, error) {
+	switch strings.TrimSpace(levelStr) {
+	case "debug":
+		return slog.LevelDebug, nil
+	case "info":
+		return slog.LevelInfo, nil
+	case "warn", "warning":
+		return slog.LevelWarn, nil
+	case "error":
+		return slog.LevelError, nil
+	default:
+		return slog.LevelInfo, fmt.Errorf("%w: %q", errArgInvalidLogLevel, levelStr)
+	}
 }

@@ -101,6 +101,8 @@ func TestRun_ConfigFileOnly_Success(t *testing.T) {
 mirror: /mirror
 target: /real
 dry-run: true
+log-level: warn
+json: true
 `
 
 	files := map[string]string{
@@ -120,6 +122,9 @@ dry-run: true
 
 	require.Equal(t, exitCodeSuccess, exitCode)
 	require.Contains(t, stderr.String(), "dry mode")
+
+	require.True(t, prog.opts.JSON)
+	require.Equal(t, "warn", prog.opts.LogLevel)
 }
 
 func TestRun_ConfigFileWithFlagOverrides_Success(t *testing.T) {
@@ -133,6 +138,8 @@ func TestRun_ConfigFileWithFlagOverrides_Success(t *testing.T) {
 mirror: /badmirror
 target: /real
 dry-run: true
+log-level: invalid
+json: false
 `
 
 	files := map[string]string{
@@ -148,6 +155,8 @@ dry-run: true
 		"--config=/config.yaml",
 		"--mirror=/mirror", // override YAML
 		"--dry-run=false",  // override YAML
+		"--json",
+		"--log-level=warn",
 	}
 
 	prog, _ := newProgram(args, fs, &stdout, &stderr, false)
@@ -163,6 +172,9 @@ dry-run: true
 
 	_, err = fs.Stat("/mirror")
 	require.NoError(t, err)
+
+	require.True(t, prog.opts.JSON)
+	require.Equal(t, "warn", prog.opts.LogLevel)
 }
 
 func TestRun_ConfigFileWithExcludesAndFlagOverride_Success(t *testing.T) {

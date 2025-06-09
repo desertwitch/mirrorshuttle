@@ -13,7 +13,20 @@ func TestParseArgs_Success(t *testing.T) {
 
 	fs := setupTestFs()
 	var stdout, stderr bytes.Buffer
-	args := []string{"program", "--mode=init", "--mirror=/mirror", "--target=/real", "--direct", "--verify", "--dry-run", "--skip-failed"}
+
+	args := []string{
+		"program",
+		"--mode=init",
+		"--mirror=/mirror",
+		"--target=/real",
+		"--exclude=/exclude",
+		"--direct",
+		"--verify",
+		"--dry-run",
+		"--skip-failed",
+		"--json",
+		"--log-level=warn",
+	}
 
 	prog, err := newProgram(args, fs, &stdout, &stderr, true)
 	require.NoError(t, err)
@@ -25,10 +38,13 @@ func TestParseArgs_Success(t *testing.T) {
 	require.Equal(t, "init", prog.opts.Mode)
 	require.Equal(t, "/mirror", prog.opts.MirrorRoot)
 	require.Equal(t, "/real", prog.opts.RealRoot)
+	require.Equal(t, "/exclude", prog.opts.Excludes[0])
 	require.True(t, prog.opts.Direct)
 	require.True(t, prog.opts.Verify)
 	require.True(t, prog.opts.SkipFailed)
 	require.True(t, prog.opts.DryRun)
+	require.True(t, prog.opts.JSON)
+	require.Equal(t, "warn", prog.opts.LogLevel)
 }
 
 func TestParseArgs_ConfigFile_Success(t *testing.T) {
@@ -39,6 +55,8 @@ func TestParseArgs_ConfigFile_Success(t *testing.T) {
 mirror: /mirror
 target: /real
 direct: true
+log-level: warn
+json: true
 `
 	err := afero.WriteFile(fs, "/config.yaml", []byte(yamlContent), 0o644)
 	require.NoError(t, err)
@@ -57,6 +75,8 @@ direct: true
 	require.Equal(t, "/mirror", prog.opts.MirrorRoot)
 	require.Equal(t, "/real", prog.opts.RealRoot)
 	require.True(t, prog.opts.Direct)
+	require.True(t, prog.opts.JSON)
+	require.Equal(t, "warn", prog.opts.LogLevel)
 }
 
 func TestParseArgs_ConfigFileOverride_Success(t *testing.T) {
@@ -70,12 +90,27 @@ direct: false
 verify: false
 dry-run: false
 skip-failed: false
+json: false
+log-level: invalid
 `
 	err := afero.WriteFile(fs, "/config.yaml", []byte(yamlContent), 0o644)
 	require.NoError(t, err)
 
 	var stdout, stderr bytes.Buffer
-	args := []string{"program", "--mode=init", "--config=/config.yaml", "--mirror=/mirror", "--target=/real", "--direct", "--verify", "--dry-run", "--skip-failed"}
+
+	args := []string{
+		"program",
+		"--mode=init",
+		"--config=/config.yaml",
+		"--mirror=/mirror",
+		"--target=/real",
+		"--direct",
+		"--verify",
+		"--dry-run",
+		"--skip-failed",
+		"--json",
+		"--log-level=warn",
+	}
 
 	prog, err := newProgram(args, fs, &stdout, &stderr, true)
 	require.NoError(t, err)
@@ -91,6 +126,8 @@ skip-failed: false
 	require.True(t, prog.opts.Verify)
 	require.True(t, prog.opts.SkipFailed)
 	require.True(t, prog.opts.DryRun)
+	require.True(t, prog.opts.JSON)
+	require.Equal(t, "warn", prog.opts.LogLevel)
 }
 
 func TestValidateOpts_ValidOptions_Success(t *testing.T) {
@@ -107,6 +144,23 @@ func TestValidateOpts_ValidOptions_Success(t *testing.T) {
 
 	err := prog.validateOpts()
 	require.NoError(t, err)
+}
+
+func TestParseArgs_InvalidLogLevel_Error(t *testing.T) {
+	t.Parallel()
+
+	fs := setupTestFs()
+	var stdout, stderr bytes.Buffer
+	args := []string{"program", "--mode=init", "--mirror=/mirror", "--target=/real"}
+
+	prog, err := newProgram(args, fs, &stdout, &stderr, true)
+	require.NoError(t, err)
+	require.NotNil(t, prog)
+
+	args = append(args, "--log-level=test")
+
+	_, err = prog.parseArgs(args)
+	require.ErrorIs(t, err, errArgInvalidLogLevel)
 }
 
 func TestValidateOpts_MissingMode_Error(t *testing.T) {
