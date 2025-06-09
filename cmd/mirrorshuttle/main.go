@@ -397,6 +397,20 @@ func (prog *program) run(ctx context.Context) (retExitCode int, retError error) 
 		}
 	}()
 
+	defer func() {
+		if prog.opts.DryRun {
+			return
+		}
+		if syncer, ok := prog.fsys.(interface{ Sync() error }); ok {
+			prog.log.Info("syncing filesystems...")
+			if err := syncer.Sync(); err == nil {
+				prog.log.Info("filesystems synced")
+			} else {
+				prog.log.Error("failed syncing filesystems", "error", err)
+			}
+		}
+	}()
+
 	if prog.opts.DryRun {
 		prog.log.Warn("running in dry mode - no changes will be made")
 	}
