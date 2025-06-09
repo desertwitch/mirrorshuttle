@@ -11,12 +11,14 @@ import (
 )
 
 func (prog *program) createMirrorStructure(ctx context.Context) error {
+	// The real root needs to exist, otherwise we have nowhere to mirror from.
 	if _, err := prog.fsys.Stat(prog.opts.RealRoot); errors.Is(err, os.ErrNotExist) {
 		return fmt.Errorf("%w: %q", errTargetNotExist, prog.opts.RealRoot)
 	} else if err != nil {
 		return fmt.Errorf("failed to stat: %q (%w)", prog.opts.RealRoot, err)
 	}
 
+	// The mirror root's parent needs to exist, otherwise we cannot create the mirror root.
 	mirrorParent := filepath.Dir(prog.opts.MirrorRoot)
 	if e, err := prog.fsys.Stat(mirrorParent); err != nil {
 		if errors.Is(err, os.ErrNotExist) {
@@ -25,9 +27,11 @@ func (prog *program) createMirrorStructure(ctx context.Context) error {
 
 		return fmt.Errorf("failed to stat: %q (%w)", mirrorParent, err)
 	} else if !e.IsDir() {
+		// The mirror root's parent is not a folder, we cannot create the mirror root inside.
 		return fmt.Errorf("%w: %q", errMirrorParentNotDir, mirrorParent)
 	}
 
+	// If the mirror root exists, it must be empty, otherwise it should not be removed.
 	if _, err := prog.fsys.Stat(prog.opts.MirrorRoot); err == nil {
 		fmt.Fprintln(prog.stdout, "testing if the existing mirror structure is empty...")
 
@@ -35,12 +39,14 @@ func (prog *program) createMirrorStructure(ctx context.Context) error {
 		if err != nil {
 			return fmt.Errorf("failed checking for emptiness: %q (%w)", prog.opts.MirrorRoot, err)
 		} else if !empty {
+			// The mirror root contains files, we do not want to remove it, user should resolve it.
 			return errMirrorNotEmpty
 		}
 
 		if prog.opts.DryRun {
 			fmt.Fprintf(prog.stdout, "dry: remove: %q\n", prog.opts.MirrorRoot)
 		} else {
+			// The mirror root is empty, we can remove it safely, for later re-creation.
 			if err := prog.fsys.RemoveAll(prog.opts.MirrorRoot); err != nil {
 				return fmt.Errorf("failed to remove: %q (%w)", prog.opts.MirrorRoot, err)
 			}
@@ -50,6 +56,7 @@ func (prog *program) createMirrorStructure(ctx context.Context) error {
 		return fmt.Errorf("failed to stat: %q (%w)", prog.opts.MirrorRoot, err)
 	}
 
+	// The mirror root either does not exist or was empty and deleted, re-create it now.
 	if prog.opts.DryRun {
 		fmt.Fprintf(prog.stdout, "dry: create: %q\n", prog.opts.MirrorRoot)
 	} else {
@@ -59,8 +66,10 @@ func (prog *program) createMirrorStructure(ctx context.Context) error {
 		fmt.Fprintf(prog.stdout, "created: %q\n", prog.opts.MirrorRoot)
 	}
 
+	// Walk the target root and re-create the directory structure inside the mirror root.
 	if err := afero.Walk(prog.fsys, prog.opts.RealRoot, func(path string, e os.FileInfo, err error) error {
 		if err := ctx.Err(); err != nil {
+			// An interrupt was received, so we also interrupt the walk.
 			return fmt.Errorf("failed checking context: %w", err)
 		}
 
@@ -68,42 +77,49 @@ func (prog *program) createMirrorStructure(ctx context.Context) error {
 			if errors.Is(err, os.ErrNotExist) {
 				fmt.Fprintf(prog.stderr, "skipped: %q (no longer exists)\n", path)
 
+				// An element has disappeared during the walk, skip it.
 				return nil
 			}
 
+			// Another failure has occurred during the walk (permissions, ...), handle it.
 			return prog.walkError(fmt.Errorf("failed to walk: %q (%w)", path, err))
 		}
 
 		if !e.IsDir() {
+			// We do not care about files in this mode, skip them.
 			return nil
 		}
 
-		if path == prog.opts.MirrorRoot {
+		if path == prog.opts.MirrorRoot { // Check if the walked path is the mirror root.
 			fmt.Fprintf(prog.stderr, "skipped: %q (is mirror root)\n", path)
 
+			// The mirror root can be contained within the target root, skip it.
 			return filepath.SkipDir
 		}
 
-		if isExcluded(path, prog.opts.Excludes) {
+		if isExcluded(path, prog.opts.Excludes) { // Check if the walked path is excluded.
 			fmt.Fprintf(prog.stderr, "skipped: %q (is among excluded)\n", path)
 
-			return filepath.SkipDir
+			// The path was among the user's excluded paths, skip it.
+			return nil
 		}
 
+		// Construct the mirror path from the target's relative path.
 		relPath, err := filepath.Rel(prog.opts.RealRoot, path)
 		if err != nil {
 			return prog.walkError(fmt.Errorf("failed to get relative path: %q (%w)", path, err))
 		}
-
 		mirrorPath := filepath.Join(prog.opts.MirrorRoot, relPath)
 
 		if mirrorPath == prog.opts.MirrorRoot {
-			return nil // already created
+			// The mirror root itself was already created above, skip it.
+			return nil
 		}
 
 		if prog.opts.DryRun {
 			fmt.Fprintf(prog.stdout, "dry: create: %q\n", mirrorPath)
 		} else {
+			// Create the respective mirror path for the specific target path.
 			if err := prog.fsys.Mkdir(mirrorPath, dirBasePerm); err != nil {
 				return prog.walkError(fmt.Errorf("failed to create: %q (%w)", mirrorPath, err))
 			}
@@ -120,19 +136,24 @@ func (prog *program) createMirrorStructure(ctx context.Context) error {
 
 func (prog *program) isEmptyStructure(ctx context.Context, path string) (bool, error) {
 	path = filepath.Clean(path)
+
 	empty := true
 
+	// Walk the given path for any files in the structure.
 	if err := afero.Walk(prog.fsys, path, func(subpath string, e os.FileInfo, err error) error {
 		if err := ctx.Err(); err != nil {
+			// An interrupt was received, also interrupt the walk.
 			return fmt.Errorf("failed checking context: %w", err)
 		}
 
 		if err != nil {
+			// An error has occurred (permissioning, ...), not safe to continue.
 			return fmt.Errorf("failed to walk: %q (%w)", subpath, err)
 		}
 
 		if !e.IsDir() {
-			fmt.Fprintf(prog.stderr, "exists: %q", subpath)
+			// Output the file that was found, but also continue to get the full list.
+			fmt.Fprintf(prog.stderr, "exists: %q\n", subpath)
 			empty = false
 		}
 
@@ -142,8 +163,10 @@ func (prog *program) isEmptyStructure(ctx context.Context, path string) (bool, e
 	}
 
 	if !empty {
+		// The structure contained files.
 		return false, nil
 	}
 
+	// The structure contained no files.
 	return true, nil
 }

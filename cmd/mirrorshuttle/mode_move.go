@@ -14,20 +14,24 @@ import (
 )
 
 func (prog *program) moveFiles(ctx context.Context) error {
+	// The mirror root needs to exist, otherwise we have nowhere to move from.
 	if _, err := prog.fsys.Stat(prog.opts.MirrorRoot); errors.Is(err, os.ErrNotExist) {
 		return fmt.Errorf("%w: %q", errMirrorNotExist, prog.opts.MirrorRoot)
 	} else if err != nil {
 		return fmt.Errorf("failed to stat: %q (%w)", prog.opts.MirrorRoot, err)
 	}
 
+	// The target root needs to exist, otherwise we have nowhere to move to.
 	if _, err := prog.fsys.Stat(prog.opts.RealRoot); errors.Is(err, os.ErrNotExist) {
 		return fmt.Errorf("%w: %q", errTargetNotExist, prog.opts.RealRoot)
 	} else if err != nil {
 		return fmt.Errorf("failed to stat: %q (%w)", prog.opts.RealRoot, err)
 	}
 
+	// Walk the mirror root and move any contents that do not exist in the target root.
 	if err := afero.Walk(prog.fsys, prog.opts.MirrorRoot, func(path string, e os.FileInfo, err error) error {
 		if err := ctx.Err(); err != nil {
+			// An interrupt was received, so we also interrupt the walk.
 			return fmt.Errorf("failed checking context: %w", err)
 		}
 
@@ -35,42 +39,48 @@ func (prog *program) moveFiles(ctx context.Context) error {
 			if errors.Is(err, os.ErrNotExist) {
 				fmt.Fprintf(prog.stderr, "skipped: %q (no longer exists)\n", path)
 
+				// An element has disappeared during the walk, skip it.
 				return nil
 			}
 
+			// Another failure has occurred during the walk (permissions, ...), handle it.
 			return prog.walkError(fmt.Errorf("failed to walk: %q (%w)", path, err))
 		}
 
-		if isExcluded(path, prog.opts.Excludes) {
+		if isExcluded(path, prog.opts.Excludes) { // Check if the source path is excluded.
 			fmt.Fprintf(prog.stderr, "skipped: %q (src is among excluded)\n", path)
 
+			// The source path was among the user's excluded paths, skip it.
 			return nil
 		}
 
+		// Construct the target path from the mirror's relative path.
 		relPath, err := filepath.Rel(prog.opts.MirrorRoot, path)
 		if err != nil {
 			return prog.walkError(fmt.Errorf("failed to get relative path: %q (%w)", path, err))
 		}
-
 		movePath := filepath.Join(prog.opts.RealRoot, relPath)
 
-		if movePath == prog.opts.MirrorRoot {
+		if movePath == prog.opts.MirrorRoot { // Check if target path is the mirror root.
 			fmt.Fprintf(prog.stderr, "skipped: %q (cannot move from mirror into mirror)\n", path)
 
+			// The target path is the mirror root, skip it (prevent insane recursion).
 			return filepath.SkipDir
 		}
 
-		if isExcluded(movePath, prog.opts.Excludes) {
+		if isExcluded(movePath, prog.opts.Excludes) { // Check if the target path is excluded.
 			fmt.Fprintf(prog.stderr, "skipped: %q (dst is among excluded)\n", movePath)
 
+			// The target path was among the user's excluded paths, skip it.
 			return nil
 		}
 
-		if e.IsDir() {
-			if _, err := prog.fsys.Stat(movePath); errors.Is(err, os.ErrNotExist) {
+		if e.IsDir() { // Handle directories.
+			if _, err := prog.fsys.Stat(movePath); errors.Is(err, os.ErrNotExist) { // Check if the target directory exists.
 				if prog.opts.DryRun {
 					fmt.Fprintf(prog.stdout, "dry: create: %q\n", movePath)
 				} else {
+					// Create the target directory, if it does not exist.
 					if err := prog.fsys.Mkdir(movePath, dirBasePerm); err != nil {
 						return prog.walkError(fmt.Errorf("failed to create: %q (%w)", movePath, err))
 					}
@@ -81,12 +91,13 @@ func (prog *program) moveFiles(ctx context.Context) error {
 			}
 
 			return nil
-		}
+		} // Must be a file from here downwards.
 
-		if _, err := prog.fsys.Stat(movePath); err == nil {
+		if _, err := prog.fsys.Stat(movePath); err == nil { // Check if the target file exists.
 			prog.hasUnmovedFiles = true
 			fmt.Fprintf(prog.stderr, "exists: %q -x-> %q (not overwriting)\n", path, movePath)
 
+			// The target file exists; do not overwrite it, set unmoved files bit and skip it.
 			return nil
 		} else if !errors.Is(err, os.ErrNotExist) {
 			return prog.walkError(fmt.Errorf("failed to stat: %q (%w)", movePath, err))
@@ -96,13 +107,15 @@ func (prog *program) moveFiles(ctx context.Context) error {
 			fmt.Fprintf(prog.stdout, "dry: move: %q -> %q\n", path, movePath)
 		} else {
 			if prog.opts.Direct {
+				// Direct mode; attempt a rename syscall, otherwise copy and remove.
 				if err := prog.fsys.Rename(path, movePath); err == nil {
 					fmt.Fprintf(prog.stdout, "moved: %q -> %q (direct)\n", path, movePath)
 
 					return nil
-				}
+				} // Rename syscall must have failed from here downwards.
 			}
 
+			// Do the regular copy and remove operation and handle any failures.
 			if err := prog.copyAndRemove(path, movePath); err != nil {
 				return prog.walkError(fmt.Errorf("failed to move: %q -x-> %q (%w)", path, movePath, err))
 			}
@@ -119,53 +132,31 @@ func (prog *program) moveFiles(ctx context.Context) error {
 }
 
 func (prog *program) copyAndRemove(src string, dst string) (retErr error) {
-	var inputClosed, outputClosed, verifierClosed, dstWritten bool
+	workingFile := dst + ".mirsht" // We work on a temporary file first.
 
 	in, err := prog.fsys.Open(src)
 	if err != nil {
-		return fmt.Errorf("failed to open src: %q (%w)", src, err)
+		return fmt.Errorf("failed to open: %q (%w)", src, err)
 	}
-	defer func() {
-		if !inputClosed {
-			in.Close()
-		}
-	}()
+	defer in.Close()
 
-	tmp := dst + ".mirsht"
-
-	out, err := prog.fsys.Create(tmp)
+	out, err := prog.fsys.Create(workingFile)
 	if err != nil {
-		return fmt.Errorf("failed to open tmp: %q (%w)", tmp, err)
+		return fmt.Errorf("failed to open: %q (%w)", workingFile, err)
 	}
-	defer func() {
-		if !outputClosed {
-			out.Close()
-		}
-	}()
+	defer out.Close()
 
 	defer func() {
-		if retErr != nil { //nolint:nestif
+		if retErr != nil {
 			if _, err := prog.fsys.Stat(src); err == nil {
-				if !dstWritten {
-					_ = prog.fsys.Remove(tmp)
-				} else {
-					_ = prog.fsys.Remove(dst)
-				}
+				_ = prog.fsys.Remove(workingFile)
 			} else if errors.Is(err, os.ErrNotExist) {
 				fmt.Fprintf(prog.stderr, "cleanup: not found: %q\n", src)
-				if !dstWritten {
-					fmt.Fprintf(prog.stderr, "cleanup: not removing: %q\n", tmp)
-				} else {
-					fmt.Fprintf(prog.stderr, "cleanup: not removing: %q\n", dst)
-				}
+				fmt.Fprintf(prog.stderr, "cleanup: not removing: %q\n", workingFile)
 			} else {
 				fmt.Fprintf(prog.stderr, "cleanup: failed to stat: %s (%v)\n", src, err)
 				fmt.Fprintf(prog.stderr, "cleanup: not removing: %q\n", src)
-				if !dstWritten {
-					fmt.Fprintf(prog.stderr, "cleanup: not removing: %q\n", tmp)
-				} else {
-					fmt.Fprintf(prog.stderr, "cleanup: not removing: %q\n", dst)
-				}
+				fmt.Fprintf(prog.stderr, "cleanup: not removing: %q\n", workingFile)
 			}
 		}
 	}()
@@ -185,57 +176,51 @@ func (prog *program) copyAndRemove(src string, dst string) (retErr error) {
 	}
 
 	if err := in.Close(); err != nil {
-		return fmt.Errorf("failed to close src: %q (%w)", src, err)
+		return fmt.Errorf("failed to close: %q (%w)", src, err)
 	}
-	inputClosed = true
 
 	if err := out.Close(); err != nil {
-		return fmt.Errorf("failed to close tmp: %q (%w)", tmp, err)
+		return fmt.Errorf("failed to close: %q (%w)", workingFile, err)
 	}
-	outputClosed = true
 
 	srcChecksum := hex.EncodeToString(srcHasher.Sum(nil))
 	dstChecksum := hex.EncodeToString(dstHasher.Sum(nil))
 
 	if srcChecksum != dstChecksum {
-		return fmt.Errorf("%w: %q (%s) != %q (%s)", errMemoryHashMismatch, src, srcChecksum, tmp, dstChecksum)
+		return fmt.Errorf("%w: %q (%s) != %q (%s)", errMemoryHashMismatch, src, srcChecksum, workingFile, dstChecksum)
 	}
 
-	if err := prog.fsys.Rename(tmp, dst); err != nil {
-		return fmt.Errorf("failed to rename tmp to dst: %q -x-> %q (%w)", tmp, dst, err)
+	if err := prog.fsys.Rename(workingFile, dst); err != nil {
+		return fmt.Errorf("failed to rename: %q -x-> %q (%w)", workingFile, dst, err)
 	}
-	dstWritten = true
+
+	workingFile = dst // We work on the actual destination file now.
 
 	if prog.opts.Verify {
 		verifyHasher := blake3.New()
 
-		verifier, err := prog.fsys.Open(dst)
+		verifier, err := prog.fsys.Open(workingFile)
 		if err != nil {
-			return fmt.Errorf("failed to re-open dst for --verify pass: %q (%w)", dst, err)
+			return fmt.Errorf("failed to re-open for --verify pass: %q (%w)", workingFile, err)
 		}
-		defer func() {
-			if !verifierClosed {
-				verifier.Close()
-			}
-		}()
+		defer verifier.Close()
 
 		if _, err := io.Copy(verifyHasher, verifier); err != nil {
-			return fmt.Errorf("failed to re-read dst for --verify pass: %q (%w)", dst, err)
+			return fmt.Errorf("failed to re-read for --verify pass: %q (%w)", workingFile, err)
 		}
 
 		if err := verifier.Close(); err != nil {
-			return fmt.Errorf("failed to close dst after --verify pass: %q (%w)", dst, err)
+			return fmt.Errorf("failed to close after --verify pass: %q (%w)", workingFile, err)
 		}
-		verifierClosed = true
 
 		verifyChecksum := hex.EncodeToString(verifyHasher.Sum(nil))
 		if verifyChecksum != srcChecksum {
-			return fmt.Errorf("%w: %q (%s) != %q (%s)", errVerifyHashMismatch, src, srcChecksum, dst, verifyChecksum)
+			return fmt.Errorf("%w: %q (%s) != %q (%s)", errVerifyHashMismatch, src, srcChecksum, workingFile, verifyChecksum)
 		}
 	}
 
 	if err := prog.fsys.Remove(src); err != nil {
-		return fmt.Errorf("failed to remove src (after move): %q (%w)", src, err)
+		return fmt.Errorf("failed to remove (after move): %q (%w)", src, err)
 	}
 
 	return nil
