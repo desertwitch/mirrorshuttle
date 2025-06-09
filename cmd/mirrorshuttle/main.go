@@ -267,7 +267,6 @@ type program struct {
 	flags    *flag.FlagSet
 
 	hasUnmovedFiles    bool
-	hasUnmovableFiles  bool
 	hasPartialFailures bool
 }
 
@@ -403,11 +402,6 @@ func (prog *program) run(ctx context.Context) (int, error) {
 
 			return exitCodeFailure, fmt.Errorf("failed moving to real structure: %w", err)
 		}
-	}
-
-	if prog.hasUnmovableFiles {
-		fmt.Fprintln(prog.stderr, "warning: there are unmovable files in the mirror structure (due to --exclude paths)")
-		fmt.Fprintln(prog.stderr, "warning: resolve these unmovable files, otherwise future --mode=init executions may fail")
 	}
 
 	if prog.hasPartialFailures {

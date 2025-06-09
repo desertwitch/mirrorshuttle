@@ -17,7 +17,7 @@ func setupTestProgram(fs afero.Fs, opts *programOptions) *program {
 	if opts == nil {
 		args := []string{"program", "--mode=init", "--mirror=/mirror", "--target=/real"}
 
-		prog, err := newProgram(args, fs, os.Stdout, os.Stderr, false)
+		prog, err := newProgram(args, fs, &bytes.Buffer{}, &bytes.Buffer{}, false)
 		if err != nil {
 			panic("expected to set up a working program for testing")
 		}
@@ -27,8 +27,8 @@ func setupTestProgram(fs afero.Fs, opts *programOptions) *program {
 
 	return &program{
 		fsys:     fs,
-		stdout:   os.Stdout,
-		stderr:   os.Stderr,
+		stdout:   &bytes.Buffer{},
+		stderr:   &bytes.Buffer{},
 		testMode: false,
 		opts:     opts,
 	}
@@ -447,7 +447,7 @@ func TestRun_ExcludedSourceAndDestination_NoOp(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func TestRun_UnmovedFilesExclusionSrcExitCode_Success(t *testing.T) {
+func TestRun_UnmovedFilesExclusionSrc_Success(t *testing.T) {
 	t.Parallel()
 
 	fs := setupTestFs()
@@ -481,10 +481,10 @@ func TestRun_UnmovedFilesExclusionSrcExitCode_Success(t *testing.T) {
 	require.ErrorIs(t, err, os.ErrNotExist)
 
 	require.Equal(t, exitCodeSuccess, exitCode)
-	require.Contains(t, stderr.String(), "unmovable files")
+	require.Contains(t, stderr.String(), "skipped:")
 }
 
-func TestRun_UnmovedFilesExclusionDstExitCode_Success(t *testing.T) {
+func TestRun_UnmovedFilesExclusionDst_Success(t *testing.T) {
 	t.Parallel()
 
 	fs := setupTestFs()
@@ -518,10 +518,10 @@ func TestRun_UnmovedFilesExclusionDstExitCode_Success(t *testing.T) {
 	require.ErrorIs(t, err, os.ErrNotExist)
 
 	require.Equal(t, exitCodeSuccess, exitCode)
-	require.Contains(t, stderr.String(), "unmovable files")
+	require.Contains(t, stderr.String(), "skipped:")
 }
 
-func TestRun_UnmovedFoldersExclusionSrcExitCode_Success(t *testing.T) {
+func TestRun_UnmovedFoldersExclusionSrc_Success(t *testing.T) {
 	t.Parallel()
 
 	fs := setupTestFs()
@@ -554,7 +554,7 @@ func TestRun_UnmovedFoldersExclusionSrcExitCode_Success(t *testing.T) {
 	require.Contains(t, stderr.String(), "skipped:")
 }
 
-func TestRun_UnmovedFoldersExclusionDstExitCode_Success(t *testing.T) {
+func TestRun_UnmovedFoldersExclusionDst_Success(t *testing.T) {
 	t.Parallel()
 
 	fs := setupTestFs()

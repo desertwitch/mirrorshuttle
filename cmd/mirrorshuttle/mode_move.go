@@ -44,10 +44,6 @@ func (prog *program) moveFiles(ctx context.Context) error {
 		if isExcluded(path, prog.opts.Excludes) {
 			fmt.Fprintf(prog.stderr, "skipped: %q (src is among excluded)\n", path)
 
-			if !e.IsDir() {
-				prog.hasUnmovableFiles = true
-			}
-
 			return nil
 		}
 
@@ -66,10 +62,6 @@ func (prog *program) moveFiles(ctx context.Context) error {
 
 		if isExcluded(movePath, prog.opts.Excludes) {
 			fmt.Fprintf(prog.stderr, "skipped: %q (dst is among excluded)\n", movePath)
-
-			if !e.IsDir() {
-				prog.hasUnmovableFiles = true
-			}
 
 			return nil
 		}

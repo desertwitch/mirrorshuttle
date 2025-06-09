@@ -98,7 +98,7 @@ func TestValidateOpts_ValidOptions_Success(t *testing.T) {
 
 	fs := setupTestFs()
 
-	prog := &program{fs, &bytes.Buffer{}, &bytes.Buffer{}, true, nil, nil, false, false, false}
+	prog := setupTestProgram(fs, nil)
 	prog.opts = &programOptions{
 		Mode:       "init",
 		MirrorRoot: "/mirror",
@@ -114,7 +114,7 @@ func TestValidateOpts_MissingMode_Error(t *testing.T) {
 
 	fs := setupTestFs()
 
-	prog := &program{fs, &bytes.Buffer{}, &bytes.Buffer{}, true, nil, nil, false, false, false}
+	prog := setupTestProgram(fs, nil)
 	prog.opts = &programOptions{
 		MirrorRoot: "/mirror",
 		RealRoot:   "/real",
@@ -129,7 +129,7 @@ func TestValidateOpts_SameMirrorAndTarget_Error(t *testing.T) {
 
 	fs := setupTestFs()
 
-	prog := &program{fs, &bytes.Buffer{}, &bytes.Buffer{}, true, nil, nil, false, false, false}
+	prog := setupTestProgram(fs, nil)
 	prog.opts = &programOptions{
 		Mode:       "move",
 		MirrorRoot: "/same",
@@ -145,7 +145,7 @@ func TestValidateOpts_RelativePaths_Error(t *testing.T) {
 
 	fs := setupTestFs()
 
-	prog := &program{fs, &bytes.Buffer{}, &bytes.Buffer{}, true, nil, nil, false, false, false}
+	prog := setupTestProgram(fs, nil)
 	prog.opts = &programOptions{
 		Mode:       "move",
 		MirrorRoot: "relative/path",
@@ -162,7 +162,8 @@ func TestPrintOpts_Success(t *testing.T) {
 	fs := setupTestFs()
 	var stdout bytes.Buffer
 
-	prog := &program{fs, &stdout, &bytes.Buffer{}, true, nil, nil, false, false, false}
+	prog := setupTestProgram(fs, nil)
+	prog.stdout = &stdout
 	prog.opts = &programOptions{
 		Mode:       "init",
 		MirrorRoot: "/mirror",
