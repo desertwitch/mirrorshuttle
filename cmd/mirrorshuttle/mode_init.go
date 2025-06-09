@@ -101,7 +101,7 @@ func (prog *program) createMirrorStructure(ctx context.Context) error {
 			prog.log.Warn("path skipped", "path", path, "reason", "is_user_excluded")
 
 			// The path was among the user's excluded paths, skip it.
-			return nil
+			return filepath.SkipDir // Do not traverse deeper.
 		}
 
 		// Construct the mirror path from the target's relative path.

@@ -51,6 +51,10 @@ func (prog *program) moveFiles(ctx context.Context) error {
 			prog.log.Warn("path skipped", "path", path, "reason", "is_user_excluded")
 
 			// The source path was among the user's excluded paths, skip it.
+			if e.IsDir() {
+				return filepath.SkipDir // Do not traverse deeper.
+			}
+
 			return nil
 		}
 
@@ -72,6 +76,10 @@ func (prog *program) moveFiles(ctx context.Context) error {
 			prog.log.Warn("path skipped", "path", movePath, "reason", "is_user_excluded")
 
 			// The target path was among the user's excluded paths, skip it.
+			if e.IsDir() {
+				return filepath.SkipDir // Do not traverse deeper.
+			}
+
 			return nil
 		}
 
