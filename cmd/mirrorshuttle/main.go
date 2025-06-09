@@ -217,6 +217,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"log/slog"
 	"os"
 	"os/signal"
 	"runtime/debug"
@@ -265,7 +266,9 @@ type program struct {
 	stderr   io.Writer
 	testMode bool
 	opts     *programOptions
-	flags    *flag.FlagSet
+
+	log   *slog.Logger
+	flags *flag.FlagSet
 
 	hasUnmovedFiles    bool
 	hasPartialFailures bool
@@ -319,7 +322,7 @@ func main() {
 		return
 
 	case <-sigChan:
-		fmt.Fprintln(os.Stderr, "warning: received interrupt signal; shutting down (waiting up to 60s)...")
+		prog.log.Warn("received interrupt signal; shutting down (waiting up to 60s)...")
 		cancel()
 
 		select {
@@ -329,8 +332,8 @@ func main() {
 			return
 
 		case <-time.After(exitTimeout):
+			prog.log.Error("fatal: timed out while waiting for program exit; killing...")
 			exitCode = exitCodeFailure
-			fmt.Fprintln(os.Stderr, "fatal: timed out while waiting for program exit; killing...")
 
 			return
 		}
@@ -346,7 +349,8 @@ func newProgram(cliArgs []string, fsys afero.Fs, stdout io.Writer, stderr io.Wri
 		testMode: testMode,
 	}
 
-	if err := prog.parseArgs(cliArgs); err != nil {
+	handler, err := prog.parseArgs(cliArgs)
+	if err != nil {
 		fmt.Fprintf(prog.stderr, "fatal: failed to parse configuration: %v\n\n", err)
 		prog.flags.Usage()
 
@@ -367,6 +371,8 @@ func newProgram(cliArgs []string, fsys afero.Fs, stdout io.Writer, stderr io.Wri
 		return nil, fmt.Errorf("failed to print configuration: %w", err)
 	}
 
+	prog.log = slog.New(handler) // We use the log handler in the program.
+
 	return prog, nil
 }
 
@@ -380,33 +386,31 @@ func (prog *program) run(ctx context.Context) (retExitCode int, retError error) 
 	}()
 
 	if prog.opts.DryRun {
-		fmt.Fprintln(prog.stderr, "warning: running in dry mode (no changes will be made)")
+		prog.log.Warn("running in dry mode (no changes will be made)")
 	}
 
 	switch prog.opts.Mode {
 	case "init":
-		fmt.Fprintln(prog.stdout, "setting up the mirror structure...")
+		prog.log.Info("setting up the mirror structure...")
 
 		if err := prog.createMirrorStructure(ctx); err != nil {
-			if errors.Is(err, errMirrorNotEmpty) {
-				fmt.Fprintf(prog.stderr, "fatal: failed creating mirror structure: %v\n", err)
-
-				return exitCodeMirrNotEmpty, fmt.Errorf("failed creating mirror structure: %w", err)
+			if !errors.Is(err, context.Canceled) {
+				prog.log.Error("fatal: failed creating mirror structure:", "error", err)
 			}
 
-			if !errors.Is(err, context.Canceled) {
-				fmt.Fprintf(prog.stderr, "fatal: failed creating mirror structure: %v\n", err)
+			if errors.Is(err, errMirrorNotEmpty) {
+				return exitCodeMirrNotEmpty, fmt.Errorf("failed creating mirror structure: %w", err)
 			}
 
 			return exitCodeFailure, fmt.Errorf("failed creating mirror structure: %w", err)
 		}
 
 	case "move":
-		fmt.Fprintln(prog.stdout, "moving from mirror to real structure...")
+		prog.log.Info("moving from mirror to real structure...")
 
 		if err := prog.moveFiles(ctx); err != nil {
 			if !errors.Is(err, context.Canceled) {
-				fmt.Fprintf(prog.stderr, "fatal: failed moving to real structure: %v\n", err)
+				prog.log.Error("fatal: failed moving to real structure:", "error", err)
 			}
 
 			return exitCodeFailure, fmt.Errorf("failed moving to real structure: %w", err)
@@ -414,18 +418,18 @@ func (prog *program) run(ctx context.Context) (retExitCode int, retError error) 
 	}
 
 	if prog.hasPartialFailures {
-		fmt.Fprintln(prog.stderr, "warning: mode has completed, but with partial failures; exiting...")
+		prog.log.Warn("mode has completed, but with partial failures; exiting...")
 
 		return exitCodePartialFailure, nil
 	}
 
 	if prog.hasUnmovedFiles {
-		fmt.Fprintln(prog.stderr, "warning: mode has completed, but with unmoved files; exiting...")
+		prog.log.Warn("mode has completed, but with unmoved files; exiting...")
 
 		return exitCodeUnmovedFiles, nil
 	}
 
-	fmt.Fprintln(prog.stdout, "success: mode has completed; exiting...")
+	prog.log.Info("success: mode has completed; exiting...")
 
 	return exitCodeSuccess, nil
 }

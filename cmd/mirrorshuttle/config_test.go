@@ -19,7 +19,7 @@ func TestParseArgs_Success(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, prog)
 
-	err = prog.parseArgs(args)
+	_, err = prog.parseArgs(args)
 	require.NoError(t, err)
 
 	require.Equal(t, "init", prog.opts.Mode)
@@ -50,7 +50,7 @@ direct: true
 	require.NoError(t, err)
 	require.NotNil(t, prog)
 
-	err = prog.parseArgs(args)
+	_, err = prog.parseArgs(args)
 	require.NoError(t, err)
 
 	require.Equal(t, "move", prog.opts.Mode)
@@ -81,7 +81,7 @@ skip-failed: false
 	require.NoError(t, err)
 	require.NotNil(t, prog)
 
-	err = prog.parseArgs(args)
+	_, err = prog.parseArgs(args)
 	require.NoError(t, err)
 
 	require.Equal(t, "init", prog.opts.Mode)
@@ -98,7 +98,7 @@ func TestValidateOpts_ValidOptions_Success(t *testing.T) {
 
 	fs := setupTestFs()
 
-	prog := setupTestProgram(fs, nil)
+	prog := setupTestProgram(fs, nil, nil, nil)
 	prog.opts = &programOptions{
 		Mode:       "init",
 		MirrorRoot: "/mirror",
@@ -114,7 +114,7 @@ func TestValidateOpts_MissingMode_Error(t *testing.T) {
 
 	fs := setupTestFs()
 
-	prog := setupTestProgram(fs, nil)
+	prog := setupTestProgram(fs, nil, nil, nil)
 	prog.opts = &programOptions{
 		MirrorRoot: "/mirror",
 		RealRoot:   "/real",
@@ -129,7 +129,7 @@ func TestValidateOpts_SameMirrorAndTarget_Error(t *testing.T) {
 
 	fs := setupTestFs()
 
-	prog := setupTestProgram(fs, nil)
+	prog := setupTestProgram(fs, nil, nil, nil)
 	prog.opts = &programOptions{
 		Mode:       "move",
 		MirrorRoot: "/same",
@@ -145,7 +145,7 @@ func TestValidateOpts_RelativePaths_Error(t *testing.T) {
 
 	fs := setupTestFs()
 
-	prog := setupTestProgram(fs, nil)
+	prog := setupTestProgram(fs, nil, nil, nil)
 	prog.opts = &programOptions{
 		Mode:       "move",
 		MirrorRoot: "relative/path",
@@ -162,8 +162,7 @@ func TestPrintOpts_Success(t *testing.T) {
 	fs := setupTestFs()
 	var stdout bytes.Buffer
 
-	prog := setupTestProgram(fs, nil)
-	prog.stdout = &stdout
+	prog := setupTestProgram(fs, nil, &stdout, nil)
 	prog.opts = &programOptions{
 		Mode:       "init",
 		MirrorRoot: "/mirror",

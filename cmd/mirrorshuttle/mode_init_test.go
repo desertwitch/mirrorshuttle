@@ -25,7 +25,7 @@ func TestCreateMirrorStructure_NestedMirror_Success(t *testing.T) {
 		DryRun:     false,
 	}
 
-	prog := setupTestProgram(fs, opts)
+	prog := setupTestProgram(fs, opts, nil, nil)
 	err = prog.createMirrorStructure(t.Context())
 	require.NoError(t, err)
 
@@ -64,7 +64,7 @@ func TestCreateMirrorStructure_WithFiles_Success(t *testing.T) {
 		DryRun:     false,
 	}
 
-	prog := setupTestProgram(fs, opts)
+	prog := setupTestProgram(fs, opts, nil, nil)
 	err = prog.createMirrorStructure(t.Context())
 	require.NoError(t, err)
 
@@ -93,7 +93,7 @@ func TestCreateMirrorStructure_WithExcludes_Success(t *testing.T) {
 		Excludes:   excludeArg{"/real/exclude"},
 	}
 
-	prog := setupTestProgram(fs, opts)
+	prog := setupTestProgram(fs, opts, nil, nil)
 	err = prog.createMirrorStructure(t.Context())
 	require.NoError(t, err)
 
@@ -119,7 +119,7 @@ func TestCreateMirrorStructure_DryRun_Success(t *testing.T) {
 		DryRun:     true,
 	}
 
-	prog := setupTestProgram(fs, opts)
+	prog := setupTestProgram(fs, opts, nil, nil)
 	err = prog.createMirrorStructure(t.Context())
 	require.NoError(t, err)
 
@@ -141,7 +141,7 @@ func TestCreateMirrorStructure_DryRun_MirrorExists_Success(t *testing.T) {
 		DryRun:     true,
 	}
 
-	prog := setupTestProgram(fs, opts)
+	prog := setupTestProgram(fs, opts, nil, nil)
 	err = prog.createMirrorStructure(t.Context())
 	require.NoError(t, err)
 
@@ -167,7 +167,7 @@ func TestCreateMirrorStructure_EmptyMirror_Success(t *testing.T) {
 		DryRun:     false,
 	}
 
-	prog := setupTestProgram(fs, opts)
+	prog := setupTestProgram(fs, opts, nil, nil)
 	err = prog.createMirrorStructure(t.Context())
 	require.NoError(t, err)
 
@@ -195,7 +195,7 @@ func TestCreateMirrorStructure_NonExistentMirror_Success(t *testing.T) {
 		DryRun:     false,
 	}
 
-	prog := setupTestProgram(fs, opts)
+	prog := setupTestProgram(fs, opts, nil, nil)
 	err = prog.createMirrorStructure(t.Context())
 	require.NoError(t, err)
 
@@ -228,7 +228,7 @@ func TestCreateMirrorStructure_CtxCancel_Error(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
 	cancel()
 
-	prog := setupTestProgram(fs, opts)
+	prog := setupTestProgram(fs, opts, nil, nil)
 	err = prog.createMirrorStructure(ctx)
 	require.ErrorIs(t, err, context.Canceled)
 
@@ -256,7 +256,7 @@ func TestCreateMirrorStructure_MirrorWithFiles_Error(t *testing.T) {
 		DryRun:     false,
 	}
 
-	prog := setupTestProgram(fs, opts)
+	prog := setupTestProgram(fs, opts, nil, nil)
 	err = prog.createMirrorStructure(t.Context())
 	require.ErrorIs(t, err, errMirrorNotEmpty)
 }
@@ -279,7 +279,7 @@ func TestCreateMirrorStructure_DryRun_FullMirror_Error(t *testing.T) {
 		DryRun:     true,
 	}
 
-	prog := setupTestProgram(fs, opts)
+	prog := setupTestProgram(fs, opts, nil, nil)
 	err = prog.createMirrorStructure(t.Context())
 	require.ErrorIs(t, err, errMirrorNotEmpty)
 
@@ -299,7 +299,7 @@ func TestCreateMirrorStructure_RealRootNotExist_Error(t *testing.T) {
 		DryRun:     false,
 	}
 
-	prog := setupTestProgram(fs, opts)
+	prog := setupTestProgram(fs, opts, nil, nil)
 	err := prog.createMirrorStructure(t.Context())
 	require.ErrorIs(t, err, errTargetNotExist)
 
@@ -326,7 +326,7 @@ func TestCreateMirrorStructure_MirrorParentNotExist_Error(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	prog := setupTestProgram(fs, opts)
+	prog := setupTestProgram(fs, opts, nil, nil)
 	err = prog.createMirrorStructure(t.Context())
 	require.ErrorIs(t, err, errMirrorParentNotExist)
 
@@ -354,7 +354,7 @@ func TestCreateMirrorStructure_MirrorParentNotDir_Error(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	prog := setupTestProgram(fs, opts)
+	prog := setupTestProgram(fs, opts, nil, nil)
 	err = prog.createMirrorStructure(t.Context())
 	require.ErrorIs(t, err, errMirrorParentNotDir)
 
@@ -374,7 +374,7 @@ func TestIsEmptyStructure_Success(t *testing.T) {
 	err := createDirStructure(fs, paths)
 	require.NoError(t, err)
 
-	prog := setupTestProgram(fs, nil)
+	prog := setupTestProgram(fs, nil, nil, nil)
 	empty, err := prog.isEmptyStructure(t.Context(), "/empty")
 	require.NoError(t, err)
 	require.True(t, empty)
@@ -391,7 +391,7 @@ func TestIsEmptyStructure_Error(t *testing.T) {
 	err := createFiles(fs, files)
 	require.NoError(t, err)
 
-	prog := setupTestProgram(fs, nil)
+	prog := setupTestProgram(fs, nil, nil, nil)
 	empty, err := prog.isEmptyStructure(t.Context(), "/nonempty")
 	require.NoError(t, err)
 	require.False(t, empty)
@@ -411,7 +411,7 @@ func TestIsEmptyStructure_CtxCancel_Error(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
 	cancel()
 
-	prog := setupTestProgram(fs, nil)
+	prog := setupTestProgram(fs, nil, nil, nil)
 	empty, err := prog.isEmptyStructure(ctx, "/empty")
 	require.ErrorIs(t, err, context.Canceled)
 	require.False(t, empty)
@@ -422,7 +422,7 @@ func TestIsEmptyStructure_NonExistentPath_Error(t *testing.T) {
 
 	fs := setupTestFs()
 
-	prog := setupTestProgram(fs, nil)
+	prog := setupTestProgram(fs, nil, nil, nil)
 	empty, err := prog.isEmptyStructure(t.Context(), "/nonexistent")
 	require.ErrorIs(t, err, os.ErrNotExist)
 	require.False(t, empty)

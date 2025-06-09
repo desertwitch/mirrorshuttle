@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
@@ -13,11 +15,20 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func setupTestProgram(fs afero.Fs, opts *programOptions) *program {
+//nolint:unparam
+func setupTestProgram(fs afero.Fs, opts *programOptions, stdout io.Writer, stderr io.Writer) *program {
+	if stdout == nil {
+		stdout = &bytes.Buffer{}
+	}
+
+	if stderr == nil {
+		stderr = &bytes.Buffer{}
+	}
+
 	if opts == nil {
 		args := []string{"program", "--mode=init", "--mirror=/mirror", "--target=/real"}
 
-		prog, err := newProgram(args, fs, &bytes.Buffer{}, &bytes.Buffer{}, false)
+		prog, err := newProgram(args, fs, stdout, stderr, false)
 		if err != nil {
 			panic("expected to set up a working program for testing")
 		}
@@ -27,10 +38,13 @@ func setupTestProgram(fs afero.Fs, opts *programOptions) *program {
 
 	return &program{
 		fsys:     fs,
-		stdout:   &bytes.Buffer{},
-		stderr:   &bytes.Buffer{},
+		stdout:   stdout,
+		stderr:   stderr,
 		testMode: false,
 		opts:     opts,
+		log: slog.New(slog.NewTextHandler(stdout, &slog.HandlerOptions{
+			Level: slog.LevelInfo,
+		})),
 	}
 }
 
@@ -105,7 +119,7 @@ dry-run: true
 	require.NoError(t, err)
 
 	require.Equal(t, exitCodeSuccess, exitCode)
-	require.Contains(t, stdout.String(), "dry-run")
+	require.Contains(t, stderr.String(), "dry mode")
 }
 
 func TestRun_ConfigFileWithFlagOverrides_Success(t *testing.T) {
@@ -281,7 +295,6 @@ func TestRun_ValidInitMode_Success(t *testing.T) {
 	require.NoError(t, err)
 
 	require.Equal(t, exitCodeSuccess, exitCode)
-	require.Empty(t, stderr.String())
 }
 
 func TestRun_ValidMoveMode_Success(t *testing.T) {
@@ -307,7 +320,6 @@ func TestRun_ValidMoveMode_Success(t *testing.T) {
 	require.NoError(t, err)
 
 	require.Equal(t, exitCodeSuccess, exitCode)
-	require.Empty(t, stderr.String())
 }
 
 func TestRun_SkipFailed_SimulatedPartialFailure_Success(t *testing.T) {
@@ -436,7 +448,7 @@ func TestRun_ExcludedSourceAndDestination_NoOp(t *testing.T) {
 	require.NoError(t, err)
 
 	require.Equal(t, exitCodeSuccess, exitCode)
-	require.Contains(t, stderr.String(), "skipped:")
+	require.Contains(t, stderr.String(), "skipped")
 
 	// File should not appear in destination
 	_, err = fs.Stat("/real/excluded/file.txt")
@@ -481,7 +493,7 @@ func TestRun_UnmovedFilesExclusionSrc_Success(t *testing.T) {
 	require.ErrorIs(t, err, os.ErrNotExist)
 
 	require.Equal(t, exitCodeSuccess, exitCode)
-	require.Contains(t, stderr.String(), "skipped:")
+	require.Contains(t, stderr.String(), "skipped")
 }
 
 func TestRun_UnmovedFilesExclusionDst_Success(t *testing.T) {
@@ -518,7 +530,7 @@ func TestRun_UnmovedFilesExclusionDst_Success(t *testing.T) {
 	require.ErrorIs(t, err, os.ErrNotExist)
 
 	require.Equal(t, exitCodeSuccess, exitCode)
-	require.Contains(t, stderr.String(), "skipped:")
+	require.Contains(t, stderr.String(), "skipped")
 }
 
 func TestRun_UnmovedFoldersExclusionSrc_Success(t *testing.T) {
@@ -551,7 +563,7 @@ func TestRun_UnmovedFoldersExclusionSrc_Success(t *testing.T) {
 	require.ErrorIs(t, err, os.ErrNotExist)
 
 	require.Equal(t, exitCodeSuccess, exitCode)
-	require.Contains(t, stderr.String(), "skipped:")
+	require.Contains(t, stderr.String(), "skipped")
 }
 
 func TestRun_UnmovedFoldersExclusionDst_Success(t *testing.T) {
@@ -584,7 +596,7 @@ func TestRun_UnmovedFoldersExclusionDst_Success(t *testing.T) {
 	require.ErrorIs(t, err, os.ErrNotExist)
 
 	require.Equal(t, exitCodeSuccess, exitCode)
-	require.Contains(t, stderr.String(), "skipped:")
+	require.Contains(t, stderr.String(), "skipped")
 }
 
 func TestRun_DryRunModeAndSkipFailed_Success(t *testing.T) {
@@ -627,7 +639,7 @@ func TestRun_MultipleExcludes_Success(t *testing.T) {
 	require.NoError(t, err)
 
 	require.Equal(t, exitCodeSuccess, exitCode)
-	require.Contains(t, stderr.String(), "skipped:")
+	require.Contains(t, stderr.String(), "skipped")
 }
 
 func TestRun_PathCleaning_Success(t *testing.T) {
@@ -647,7 +659,6 @@ func TestRun_PathCleaning_Success(t *testing.T) {
 	require.NoError(t, err)
 
 	require.Equal(t, exitCodeSuccess, exitCode)
-	require.Empty(t, stderr.String())
 }
 
 func TestRun_ValidInitMode_CtxCancel_Error(t *testing.T) {

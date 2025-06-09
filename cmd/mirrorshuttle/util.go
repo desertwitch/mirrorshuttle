@@ -23,7 +23,7 @@ func (s *excludeArg) Set(value string) error {
 func (prog *program) walkError(err error) error {
 	if prog.opts.SkipFailed {
 		prog.hasPartialFailures = true
-		fmt.Fprintf(prog.stderr, "skipped: %v\n", err)
+		prog.log.Error("skipped:", "error", err)
 
 		return nil
 	}

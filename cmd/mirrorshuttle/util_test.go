@@ -55,34 +55,32 @@ func TestWalkError_SkipFailedTrue_Success(t *testing.T) {
 	t.Parallel()
 
 	fs := setupTestFs()
-	var stderr bytes.Buffer
+	var stdout bytes.Buffer
 
 	opts := &programOptions{SkipFailed: true}
-	prog := setupTestProgram(fs, opts)
-	prog.stderr = &stderr
+	prog := setupTestProgram(fs, opts, &stdout, nil)
 
 	err := errors.New("mock error")
 	result := prog.walkError(err)
 
 	require.NoError(t, result)
 	require.True(t, prog.hasPartialFailures)
-	require.Contains(t, stderr.String(), "skipped: mock error")
+	require.Contains(t, stdout.String(), "skipped")
 }
 
 func TestWalkError_SkipFailedFalse_Error(t *testing.T) {
 	t.Parallel()
 
 	fs := setupTestFs()
-	var stderr bytes.Buffer
+	var stdout bytes.Buffer
 
 	opts := &programOptions{SkipFailed: false}
-	prog := setupTestProgram(fs, opts)
-	prog.stderr = &stderr
+	prog := setupTestProgram(fs, opts, &stdout, nil)
 
 	mockErr := errors.New("real error")
 	result := prog.walkError(mockErr)
 
 	require.Equal(t, mockErr, result)
 	require.False(t, prog.hasPartialFailures)
-	require.Empty(t, stderr.String())
+	require.NotContains(t, stdout.String(), "skipped")
 }

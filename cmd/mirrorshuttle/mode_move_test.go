@@ -33,7 +33,7 @@ func TestMoveFiles_RegularMove_Success(t *testing.T) {
 		DryRun:     false,
 	}
 
-	prog := setupTestProgram(fs, opts)
+	prog := setupTestProgram(fs, opts, nil, nil)
 	err = prog.moveFiles(t.Context())
 	require.NoError(t, err)
 
@@ -80,7 +80,7 @@ func TestMoveFiles_DirectMove_Success(t *testing.T) {
 		DryRun:     false,
 	}
 
-	prog := setupTestProgram(fs, opts)
+	prog := setupTestProgram(fs, opts, nil, nil)
 	err = prog.moveFiles(t.Context())
 	require.NoError(t, err)
 
@@ -119,7 +119,7 @@ func TestMoveFiles_FileAlreadyExists_Success(t *testing.T) {
 		DryRun:     false,
 	}
 
-	prog := setupTestProgram(fs, opts)
+	prog := setupTestProgram(fs, opts, nil, nil)
 	err = prog.moveFiles(t.Context())
 	require.NoError(t, err)
 
@@ -160,7 +160,7 @@ func TestMoveFiles_WithExcludes_Success(t *testing.T) {
 		Excludes:   excludeArg{"/mirror/exclude.txt"},
 	}
 
-	prog := setupTestProgram(fs, opts)
+	prog := setupTestProgram(fs, opts, nil, nil)
 	err = prog.moveFiles(t.Context())
 	require.NoError(t, err)
 
@@ -201,7 +201,7 @@ func TestMoveFiles_WithDirExcludes_Success(t *testing.T) {
 		Excludes:   excludeArg{"/mirror/exclude"},
 	}
 
-	prog := setupTestProgram(fs, opts)
+	prog := setupTestProgram(fs, opts, nil, nil)
 	err = prog.moveFiles(t.Context())
 	require.NoError(t, err)
 
@@ -240,7 +240,7 @@ func TestMoveFiles_DryRun_Success(t *testing.T) {
 		DryRun:     true,
 	}
 
-	prog := setupTestProgram(fs, opts)
+	prog := setupTestProgram(fs, opts, nil, nil)
 	err = prog.moveFiles(t.Context())
 	require.NoError(t, err)
 
@@ -276,7 +276,7 @@ func TestMoveFiles_CreateTargetDirs_Success(t *testing.T) {
 		DryRun:     false,
 	}
 
-	prog := setupTestProgram(fs, opts)
+	prog := setupTestProgram(fs, opts, nil, nil)
 	err = prog.moveFiles(t.Context())
 	require.NoError(t, err)
 
@@ -303,7 +303,7 @@ func TestMoveFiles_EmptyMirror_Success(t *testing.T) {
 		DryRun:     false,
 	}
 
-	prog := setupTestProgram(fs, opts)
+	prog := setupTestProgram(fs, opts, nil, nil)
 	err = prog.moveFiles(t.Context())
 	require.NoError(t, err)
 }
@@ -324,7 +324,7 @@ func TestMoveFiles_DirectoryAlreadyExists_Success(t *testing.T) {
 		DryRun:     false,
 	}
 
-	prog := setupTestProgram(fs, opts)
+	prog := setupTestProgram(fs, opts, nil, nil)
 	err = prog.moveFiles(t.Context())
 	require.NoError(t, err)
 
@@ -353,7 +353,7 @@ func TestMoveFiles_MoveIntoMirror_Success(t *testing.T) {
 		DryRun:     false,
 	}
 
-	prog := setupTestProgram(fs, opts)
+	prog := setupTestProgram(fs, opts, nil, nil)
 	err = prog.moveFiles(t.Context())
 	require.NoError(t, err)
 
@@ -389,7 +389,7 @@ func TestMoveFiles_CtxCancel_Error(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
 	cancel()
 
-	prog := setupTestProgram(fs, opts)
+	prog := setupTestProgram(fs, opts, nil, nil)
 	err = prog.moveFiles(ctx)
 	require.ErrorIs(t, err, context.Canceled)
 
@@ -425,7 +425,7 @@ func TestMoveFiles_CreateTargetDirs_BaseGone_Error(t *testing.T) {
 	}
 
 	// Verify the operation fails as base is missing.
-	prog := setupTestProgram(fs, opts)
+	prog := setupTestProgram(fs, opts, nil, nil)
 	err = prog.moveFiles(t.Context())
 	require.ErrorIs(t, err, errTargetNotExist)
 
@@ -445,7 +445,7 @@ func TestMoveFiles_MirrorNotExist_Error(t *testing.T) {
 		DryRun:     false,
 	}
 
-	prog := setupTestProgram(fs, opts)
+	prog := setupTestProgram(fs, opts, nil, nil)
 	err := prog.moveFiles(t.Context())
 	require.ErrorIs(t, err, errMirrorNotExist)
 }
@@ -460,7 +460,7 @@ func TestCopyAndRemove_Success(t *testing.T) {
 	err := createFiles(fs, files)
 	require.NoError(t, err)
 
-	prog := setupTestProgram(fs, nil)
+	prog := setupTestProgram(fs, nil, nil, nil)
 	err = prog.copyAndRemove("/src/file.txt", "/dst/file.txt")
 	require.NoError(t, err)
 
@@ -484,7 +484,7 @@ func TestCopyAndRemove_Verify_Success(t *testing.T) {
 	err := createFiles(fs, files)
 	require.NoError(t, err)
 
-	prog := setupTestProgram(fs, nil)
+	prog := setupTestProgram(fs, nil, nil, nil)
 	prog.opts.Verify = true
 
 	err = prog.copyAndRemove("/src/file.txt", "/dst/file.txt")
@@ -513,7 +513,7 @@ func TestCopyAndRemove_DstTmpFileExists_Success(t *testing.T) {
 	}
 	require.NoError(t, createFiles(fs, files))
 
-	prog := setupTestProgram(fs, nil)
+	prog := setupTestProgram(fs, nil, nil, nil)
 
 	err := prog.copyAndRemove("/src/file.txt", "/dst/file.txt")
 	require.NoError(t, err)
@@ -535,7 +535,7 @@ func TestCopyAndRemove_SourceNotFound_Error(t *testing.T) {
 
 	fs := setupTestFs()
 
-	prog := setupTestProgram(fs, nil)
+	prog := setupTestProgram(fs, nil, nil, nil)
 	err := prog.copyAndRemove("/nonexistent/file.txt", "/dst/file.txt")
 	require.ErrorIs(t, err, os.ErrNotExist)
 }

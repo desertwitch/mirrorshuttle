@@ -3,13 +3,16 @@ package main
 import (
 	"flag"
 	"fmt"
+	"log/slog"
 	"path/filepath"
 	"strings"
+	"time"
 
+	"github.com/lmittmann/tint"
 	"gopkg.in/yaml.v3"
 )
 
-func (prog *program) parseArgs(cliArgs []string) error {
+func (prog *program) parseArgs(cliArgs []string) (slog.Handler, error) {
 	var (
 		yamlFile string
 		yamlOpts programOptions
@@ -39,7 +42,7 @@ func (prog *program) parseArgs(cliArgs []string) error {
 	prog.flags.BoolVar(&prog.opts.DryRun, "dry-run", false, "preview only; no changes are written to disk")
 
 	if err := prog.flags.Parse(cliArgs[1:]); err != nil {
-		return fmt.Errorf("failed parsing flags: %w", err)
+		return nil, fmt.Errorf("failed parsing flags: %w", err)
 	}
 
 	setFlags := make(map[string]bool)
@@ -50,7 +53,7 @@ func (prog *program) parseArgs(cliArgs []string) error {
 	if yamlFile != "" {
 		f, err := prog.fsys.Open(yamlFile)
 		if err != nil {
-			return fmt.Errorf("%w: %w", errArgConfigMissing, err)
+			return nil, fmt.Errorf("%w: %w", errArgConfigMissing, err)
 		}
 		defer f.Close()
 
@@ -58,7 +61,7 @@ func (prog *program) parseArgs(cliArgs []string) error {
 		dec.KnownFields(true)
 
 		if err := dec.Decode(&yamlOpts); err != nil {
-			return fmt.Errorf("%w: %w", errArgConfigMalformed, err)
+			return nil, fmt.Errorf("%w: %w", errArgConfigMalformed, err)
 		}
 	}
 
@@ -87,7 +90,13 @@ func (prog *program) parseArgs(cliArgs []string) error {
 		prog.opts.DryRun = yamlOpts.DryRun
 	}
 
-	return nil
+	logHandler := tint.NewHandler(prog.stderr,
+		&tint.Options{
+			Level:      slog.LevelDebug,
+			TimeFormat: time.TimeOnly,
+		})
+
+	return logHandler, nil
 }
 
 func (prog *program) validateOpts() error {

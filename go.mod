@@ -3,6 +3,7 @@ module github.com/desertwitch/mirrorshuttle
 go 1.24.1
 
 require (
+	github.com/lmittmann/tint v1.1.2
 	github.com/spf13/afero v1.14.0
 	github.com/stretchr/testify v1.10.0
 	github.com/zeebo/blake3 v0.2.4
