@@ -111,7 +111,7 @@ system locations; ensure they are executable by running `chmod +x` before use.
 		Default: info
 
 	--json
-		Optional. Outputs the operational logs that are emitted in JSON format.
+		Optional. Outputs in JSON format the operational logs that are emitted.
 		Allows for programmatic parsing of output from standard error (stderr).
 
 		Default: false
