@@ -391,7 +391,7 @@ func newProgram(cliArgs []string, fsys afero.Fs, stdout io.Writer, stderr io.Wri
 func (prog *program) run(ctx context.Context) (retExitCode int, retError error) {
 	defer func() {
 		if r := recover(); r != nil {
-			fmt.Fprintf(prog.stderr, "panic recovered: %v\n", r)
+			prog.log.Error("panic recovered", "error", r)
 			debug.PrintStack()
 			retExitCode = exitCodeFailure
 		}
