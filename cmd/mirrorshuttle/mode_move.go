@@ -210,7 +210,7 @@ func (prog *program) copyAndRemove(ctx context.Context, src string, dst string) 
 	dstHash = hex.EncodeToString(dstHasher.Sum(nil))
 
 	if srcHash != dstHash {
-		return srcHash, dstHash, verifyHash, errMemoryHashMismatch
+		return srcHash, dstHash, verifyHash, fmt.Errorf("%w: %q (srcHash) != %q (dstHash)", errMemoryHashMismatch, srcHash, dstHash)
 	}
 
 	if err := prog.fsys.Rename(workingFile, dst); err != nil {
@@ -240,8 +240,8 @@ func (prog *program) copyAndRemove(ctx context.Context, src string, dst string) 
 
 		verifyHash = hex.EncodeToString(verifyHasher.Sum(nil))
 
-		if verifyHash != srcHash {
-			return srcHash, dstHash, verifyHash, errVerifyHashMismatch
+		if srcHash != verifyHash {
+			return srcHash, dstHash, verifyHash, fmt.Errorf("%w: %q (srcHash) != %q (verifyHash)", errVerifyHashMismatch, srcHash, verifyHash)
 		}
 	}
 
