@@ -128,7 +128,19 @@ func (prog *program) createMirrorStructure(ctx context.Context) error {
 				dirsCreated = 0 // Reset the counter after timeout has passed.
 			}
 		}
-		prog.log.Info("directory created", "op", prog.opts.Mode, "path", mirrorPath, "slow-mode", prog.opts.SlowMode, "dry-run", prog.opts.DryRun)
+
+		if prog.opts.SlowMode {
+			prog.log.Info(
+				"directory created",
+				"op", prog.opts.Mode,
+				"path", mirrorPath,
+				"slow-mode", prog.opts.SlowMode,
+				"slow-batch", fmt.Sprintf("%d/%d", dirsCreated, dirCreationBatch),
+				"dry-run", prog.opts.DryRun,
+			)
+		} else {
+			prog.log.Info("directory created", "op", prog.opts.Mode, "path", mirrorPath, "slow-mode", prog.opts.SlowMode, "dry-run", prog.opts.DryRun)
+		}
 
 		return nil
 	}); err != nil {

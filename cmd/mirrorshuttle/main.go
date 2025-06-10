@@ -359,7 +359,7 @@ func main() {
 			return
 
 		case <-time.After(exitTimeout):
-			prog.log.Error("timed out while waiting for program exit; killing...", "op", prog.opts.Mode, "error_type", "fatal")
+			prog.log.Error("timed out while waiting for program exit; killing...", "op", prog.opts.Mode, "error-type", "fatal")
 			exitCode = exitCodeFailure
 
 			return
@@ -404,7 +404,7 @@ func newProgram(cliArgs []string, fsys afero.Fs, stdout io.Writer, stderr io.Wri
 func (prog *program) run(ctx context.Context) (retExitCode int, retError error) {
 	defer func() {
 		if r := recover(); r != nil {
-			prog.log.Error("panic recovered", "op", prog.opts.Mode, "error", r, "error_type", "fatal")
+			prog.log.Error("panic recovered", "op", prog.opts.Mode, "error", r, "error-type", "fatal")
 			debug.PrintStack()
 			retExitCode = exitCodeFailure
 		}
@@ -419,7 +419,7 @@ func (prog *program) run(ctx context.Context) (retExitCode int, retError error) 
 			if err := syncable.Sync(); err == nil {
 				prog.log.Info("filesystems synced", "op", prog.opts.Mode)
 			} else {
-				prog.log.Error("failed syncing filesystems", "op", prog.opts.Mode, "error", err, "error_type", "runtime")
+				prog.log.Error("failed syncing filesystems", "op", prog.opts.Mode, "error", err, "error-type", "runtime")
 			}
 		}
 	}()
@@ -434,7 +434,7 @@ func (prog *program) run(ctx context.Context) (retExitCode int, retError error) 
 
 		if err := prog.createMirrorStructure(ctx); err != nil {
 			if !errors.Is(err, context.Canceled) {
-				prog.log.Error("failed creating mirror structure", "op", prog.opts.Mode, "error", err, "error_type", "fatal")
+				prog.log.Error("failed creating mirror structure", "op", prog.opts.Mode, "error", err, "error-type", "fatal")
 			}
 
 			if errors.Is(err, errMirrorNotEmpty) {
@@ -449,7 +449,7 @@ func (prog *program) run(ctx context.Context) (retExitCode int, retError error) 
 
 		if err := prog.moveFiles(ctx); err != nil {
 			if !errors.Is(err, context.Canceled) {
-				prog.log.Error("failed moving to target structure", "op", prog.opts.Mode, "error", err, "error_type", "fatal")
+				prog.log.Error("failed moving to target structure", "op", prog.opts.Mode, "error", err, "error-type", "fatal")
 			}
 
 			return exitCodeFailure, fmt.Errorf("failed moving to target structure: %w", err)
