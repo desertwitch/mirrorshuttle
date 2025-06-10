@@ -315,7 +315,7 @@ func Test_Unit_MoveFiles_WithDstDirExcludes_Success(t *testing.T) {
 	require.NoError(t, err)
 }
 
-// Expectation: The program should respect the dry-mode.
+// Expectation: The program should respect the dry-run mode.
 func Test_Unit_MoveFiles_DryRun_Success(t *testing.T) {
 	t.Parallel()
 

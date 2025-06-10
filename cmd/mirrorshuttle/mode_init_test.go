@@ -159,7 +159,7 @@ func Test_Unit_CreateMirrorStructure_WithExcludes_Success(t *testing.T) {
 	require.ErrorIs(t, err, os.ErrNotExist)
 }
 
-// Expectation: The function should respect the dry-mode and not write anything.
+// Expectation: The function should respect the dry-run mode and not write anything.
 func Test_Unit_CreateMirrorStructure_DryRun_Success(t *testing.T) {
 	t.Parallel()
 
@@ -182,7 +182,7 @@ func Test_Unit_CreateMirrorStructure_DryRun_Success(t *testing.T) {
 	require.ErrorIs(t, err, os.ErrNotExist)
 }
 
-// Expectation: The function should not delete an existing mirror in dry-mode.
+// Expectation: The function should not delete an existing mirror in dry-run mode.
 func Test_Unit_CreateMirrorStructure_DryRun_MirrorExists_Success(t *testing.T) {
 	t.Parallel()
 

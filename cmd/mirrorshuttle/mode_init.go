@@ -45,28 +45,24 @@ func (prog *program) createMirrorStructure(ctx context.Context) error {
 			return errMirrorNotEmpty
 		}
 
-		if prog.opts.DryRun {
-			prog.log.Info("[dry-mode] mirror directory removed", "op", prog.opts.Mode, "path", prog.opts.MirrorRoot)
-		} else {
+		if !prog.opts.DryRun {
 			// The mirror root is empty, we can remove it safely, for later re-creation.
 			if err := prog.fsys.RemoveAll(prog.opts.MirrorRoot); err != nil {
 				return fmt.Errorf("failed to remove: %q (%w)", prog.opts.MirrorRoot, err)
 			}
-			prog.log.Info("mirror directory removed", "op", prog.opts.Mode, "path", prog.opts.MirrorRoot)
 		}
+		prog.log.Info("mirror directory removed", "op", prog.opts.Mode, "path", prog.opts.MirrorRoot, "dry-run", prog.opts.DryRun)
 	} else if !errors.Is(err, os.ErrNotExist) {
 		return fmt.Errorf("failed to stat: %q (%w)", prog.opts.MirrorRoot, err)
 	}
 
 	// The mirror root either does not exist or was empty and deleted, re-create it now.
-	if prog.opts.DryRun {
-		prog.log.Info("[dry-mode] mirror directory created", "op", prog.opts.Mode, "path", prog.opts.MirrorRoot)
-	} else {
+	if !prog.opts.DryRun {
 		if err := prog.fsys.Mkdir(prog.opts.MirrorRoot, dirBasePerm); err != nil {
 			return fmt.Errorf("failed to create: %q (%w)", prog.opts.MirrorRoot, err)
 		}
-		prog.log.Info("mirror directory created", "op", prog.opts.Mode, "path", prog.opts.MirrorRoot)
 	}
+	prog.log.Info("mirror directory created", "op", prog.opts.Mode, "path", prog.opts.MirrorRoot, "dry-run", prog.opts.DryRun)
 
 	// Walk the target root and re-create the directory structure inside the mirror root.
 	if err := afero.Walk(prog.fsys, prog.opts.RealRoot, func(path string, e os.FileInfo, err error) error {
@@ -118,18 +114,16 @@ func (prog *program) createMirrorStructure(ctx context.Context) error {
 			return nil
 		}
 
-		if prog.opts.DryRun {
-			prog.log.Info("[dry-mode] directory created", "op", prog.opts.Mode, "path", mirrorPath)
-		} else {
+		if !prog.opts.DryRun {
 			// Create the respective mirror path for the specific target path.
 			if err := prog.fsys.Mkdir(mirrorPath, dirBasePerm); err != nil {
 				return prog.walkError(fmt.Errorf("failed to create: %q (%w)", mirrorPath, err))
 			}
-			prog.log.Info("directory created", "op", prog.opts.Mode, "path", mirrorPath, "slow-mode", prog.opts.SlowMode)
 			if prog.opts.SlowMode {
 				time.Sleep(slowTimeout)
 			}
 		}
+		prog.log.Info("directory created", "op", prog.opts.Mode, "path", mirrorPath, "slow-mode", prog.opts.SlowMode, "dry-run", prog.opts.DryRun)
 
 		return nil
 	}); err != nil {

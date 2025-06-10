@@ -442,14 +442,14 @@ func (prog *program) run(ctx context.Context) (retExitCode int, retError error) 
 		}
 
 	case "move":
-		prog.log.Info("checking the mirror for files to move...", "op", prog.opts.Mode)
+		prog.log.Info("moving files from mirror to target structure...", "op", prog.opts.Mode)
 
 		if err := prog.moveFiles(ctx); err != nil {
 			if !errors.Is(err, context.Canceled) {
-				prog.log.Error("fatal: failed moving to real structure", "op", prog.opts.Mode, "error", err)
+				prog.log.Error("fatal: failed moving to target structure", "op", prog.opts.Mode, "error", err)
 			}
 
-			return exitCodeFailure, fmt.Errorf("failed moving to real structure: %w", err)
+			return exitCodeFailure, fmt.Errorf("failed moving to target structure: %w", err)
 		}
 	}
 

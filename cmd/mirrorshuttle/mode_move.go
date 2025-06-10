@@ -85,15 +85,13 @@ func (prog *program) moveFiles(ctx context.Context) error {
 
 		if e.IsDir() { // Handle directories.
 			if _, err := prog.fsys.Stat(movePath); errors.Is(err, os.ErrNotExist) { // Check if the target directory exists.
-				if prog.opts.DryRun {
-					prog.log.Info("[dry-mode] directory created", "op", prog.opts.Mode, "path", movePath)
-				} else {
+				if !prog.opts.DryRun {
 					// Create the target directory, if it does not exist.
 					if err := prog.fsys.Mkdir(movePath, dirBasePerm); err != nil {
 						return prog.walkError(fmt.Errorf("failed to create: %q (%w)", movePath, err))
 					}
-					prog.log.Info("directory created", "op", prog.opts.Mode, "path", movePath)
 				}
+				prog.log.Info("directory created", "op", prog.opts.Mode, "path", movePath, "dry-run", prog.opts.DryRun)
 			} else if err != nil {
 				return prog.walkError(fmt.Errorf("failed to stat: %q (%w)", movePath, err))
 			}
@@ -111,13 +109,11 @@ func (prog *program) moveFiles(ctx context.Context) error {
 			return prog.walkError(fmt.Errorf("failed to stat: %q (%w)", movePath, err))
 		}
 
-		if prog.opts.DryRun {
-			prog.log.Info("[dry-mode] file moved", "op", prog.opts.Mode, "src", path, "dst", movePath)
-		} else {
+		if !prog.opts.DryRun {
 			if prog.opts.Direct {
 				// Direct mode; attempt a rename syscall, otherwise copy and remove.
 				if err := prog.fsys.Rename(path, movePath); err == nil {
-					prog.log.Info("file moved", "op", prog.opts.Mode, "mode", "direct", "src", path, "dst", movePath)
+					prog.log.Info("file moved", "op", prog.opts.Mode, "mode", "direct", "src", path, "dst", movePath, "dry-run", prog.opts.DryRun)
 
 					return nil
 				} // Rename syscall must have failed from here downwards.
@@ -128,7 +124,9 @@ func (prog *program) moveFiles(ctx context.Context) error {
 				return prog.walkError(fmt.Errorf("failed to move: %q -x-> %q (%w)", path, movePath, err))
 			}
 
-			prog.log.Info("file moved", "op", prog.opts.Mode, "mode", "c+r", "src", path, "dst", movePath)
+			prog.log.Info("file moved", "op", prog.opts.Mode, "mode", "c+r", "src", path, "dst", movePath, "dry-run", prog.opts.DryRun)
+		} else {
+			prog.log.Info("file moved", "op", prog.opts.Mode, "mode", "none", "src", path, "dst", movePath, "dry-run", prog.opts.DryRun)
 		}
 
 		return nil
