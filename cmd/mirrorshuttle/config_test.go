@@ -24,6 +24,7 @@ func Test_Unit_ParseArgs_All_Success(t *testing.T) {
 		"--direct",
 		"--verify",
 		"--dry-run",
+		"--slow-mode",
 		"--skip-failed",
 		"--json",
 		"--log-level=warn",
@@ -44,6 +45,7 @@ func Test_Unit_ParseArgs_All_Success(t *testing.T) {
 	require.True(t, prog.opts.Verify)
 	require.True(t, prog.opts.SkipFailed)
 	require.True(t, prog.opts.DryRun)
+	require.True(t, prog.opts.SlowMode)
 	require.True(t, prog.opts.JSON)
 	require.Equal(t, "warn", prog.opts.LogLevel)
 }
@@ -61,6 +63,7 @@ exclude:
 direct: true
 verify: true
 dry-run: true
+slow-mode: true
 skip-failed: true
 log-level: warn
 json: true
@@ -86,6 +89,7 @@ json: true
 	require.True(t, prog.opts.Verify)
 	require.True(t, prog.opts.SkipFailed)
 	require.True(t, prog.opts.DryRun)
+	require.True(t, prog.opts.SlowMode)
 	require.True(t, prog.opts.JSON)
 	require.Equal(t, "warn", prog.opts.LogLevel)
 }
@@ -103,6 +107,7 @@ exclude:
 direct: false
 verify: false
 dry-run: false
+slow-mode: false
 skip-failed: false
 json: false
 log-level: invalid
@@ -121,6 +126,7 @@ log-level: invalid
 		"--exclude=/exclude",
 		"--direct",
 		"--verify",
+		"--slow-mode",
 		"--dry-run",
 		"--skip-failed",
 		"--json",
@@ -142,6 +148,7 @@ log-level: invalid
 	require.True(t, prog.opts.Verify)
 	require.True(t, prog.opts.SkipFailed)
 	require.True(t, prog.opts.DryRun)
+	require.True(t, prog.opts.SlowMode)
 	require.True(t, prog.opts.JSON)
 	require.Equal(t, "warn", prog.opts.LogLevel)
 }

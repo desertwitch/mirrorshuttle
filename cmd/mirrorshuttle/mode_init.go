@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/spf13/afero"
 )
@@ -124,7 +125,10 @@ func (prog *program) createMirrorStructure(ctx context.Context) error {
 			if err := prog.fsys.Mkdir(mirrorPath, dirBasePerm); err != nil {
 				return prog.walkError(fmt.Errorf("failed to create: %q (%w)", mirrorPath, err))
 			}
-			prog.log.Info("directory created", "op", prog.opts.Mode, "path", mirrorPath)
+			prog.log.Info("directory created", "op", prog.opts.Mode, "path", mirrorPath, "slow-mode", prog.opts.SlowMode)
+			if prog.opts.SlowMode {
+				time.Sleep(slowTimeout)
+			}
 		}
 
 		return nil

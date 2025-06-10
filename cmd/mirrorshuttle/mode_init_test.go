@@ -8,6 +8,57 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// Expectation: The function should mirror the nested directory structure.
+func Test_Unit_CreateMirrorStructure_DeepStructure_Success(t *testing.T) {
+	t.Parallel()
+
+	fs := setupTestFs()
+	err := createDirStructure(fs, []string{
+		"/real/dir1/dir2/dir3/dir4/dir5",
+	})
+	require.NoError(t, err)
+
+	opts := &programOptions{
+		MirrorRoot: "/mirror",
+		RealRoot:   "/real",
+		DryRun:     false,
+	}
+
+	prog, _, _ := setupTestProgram(fs, opts)
+	err = prog.createMirrorStructure(t.Context())
+	require.NoError(t, err)
+
+	_, err = fs.Stat("/mirror/dir1/dir2/dir3/dir4/dir5")
+	require.NoError(t, err)
+}
+
+// Expectation: The function should mirror the nested directory structure in slow-mode.
+func Test_Unit_CreateMirrorStructure_DeepStructureSlow_Success(t *testing.T) {
+	t.Parallel()
+
+	fs := setupTestFs()
+	err := createDirStructure(fs, []string{
+		"/real/dir1/dir2/dir3/dir4/dir5",
+	})
+	require.NoError(t, err)
+
+	opts := &programOptions{
+		MirrorRoot: "/mirror",
+		RealRoot:   "/real",
+		DryRun:     false,
+		SlowMode:   true,
+	}
+
+	prog, _, _ := setupTestProgram(fs, opts)
+	err = prog.createMirrorStructure(t.Context())
+	require.NoError(t, err)
+
+	_, err = fs.Stat("/mirror/dir1/dir2/dir3/dir4/dir5")
+	require.NoError(t, err)
+
+	require.True(t, prog.opts.SlowMode)
+}
+
 // Expectation: The function should exclude the mirror root itself.
 func Test_Unit_CreateMirrorStructure_NestedMirror_Success(t *testing.T) {
 	t.Parallel()

@@ -23,7 +23,7 @@ func (prog *program) parseArgs(cliArgs []string) error {
 	prog.flags.Usage = func() {
 		fmt.Fprintf(prog.stderr, "usage: %q --mode=init|move --mirror=ABSPATH --target=ABSPATH\n", cliArgs[0])
 		fmt.Fprintf(prog.stderr, "\t[--exclude=ABSPATH] [--exclude=ABSPATH] [--direct] [--verify] [--skip-failed]\n")
-		fmt.Fprintf(prog.stderr, "\t[--dry-run] [--log-level=debug|info|warn|error] [--json]\n\n")
+		fmt.Fprintf(prog.stderr, "\t[--slow-mode] [--dry-run] [--log-level=debug|info|warn|error] [--json]\n\n")
 		prog.flags.PrintDefaults()
 	}
 
@@ -35,6 +35,7 @@ func (prog *program) parseArgs(cliArgs []string) error {
 	prog.flags.BoolVar(&prog.opts.Direct, "direct", false, "use atomic rename when possible; fallback to copy and remove if it fails or crosses filesystems")
 	prog.flags.BoolVar(&prog.opts.Verify, "verify", false, "verify again the hash of a target file after moving it; requires an extra full read of the file")
 	prog.flags.BoolVar(&prog.opts.SkipFailed, "skip-failed", false, "do not exit on non-fatal failures; skip failed element and proceed instead")
+	prog.flags.BoolVar(&prog.opts.SlowMode, "slow-mode", false, "adds 250ms timeout after directory creations in --mode=init; avoids thrashing filesystem")
 	prog.flags.BoolVar(&prog.opts.DryRun, "dry-run", false, "preview only; no changes are written to disk")
 	prog.flags.StringVar(&prog.opts.LogLevel, "log-level", "info", "decides the verbosity of emitted logs; debug, info, warn, error")
 	prog.flags.BoolVar(&prog.opts.JSON, "json", false, "output all emitted logs in the JSON format; results can be read from stderr")
@@ -83,6 +84,9 @@ func (prog *program) parseArgs(cliArgs []string) error {
 	}
 	if !setFlags["skip-failed"] {
 		prog.opts.SkipFailed = yamlOpts.SkipFailed
+	}
+	if !setFlags["slow-mode"] {
+		prog.opts.SlowMode = yamlOpts.SlowMode
 	}
 	if !setFlags["dry-run"] {
 		prog.opts.DryRun = yamlOpts.DryRun

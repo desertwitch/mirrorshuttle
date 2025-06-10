@@ -127,6 +127,12 @@ system locations; ensure they are executable by running `chmod +x` before use.
 
         Default: false
 
+    --slow-mode
+        Optional. Adds a 250 millisecond timeout after each directory creation
+        in `--mode=init` to avoid thrashing more sensitive filesystems.
+
+        Default: false
+
     --dry-run
         Optional. Perform a preview of operations, without filesystem changes.
         Useful for verifying behavior before execution.
@@ -154,6 +160,7 @@ system locations; ensure they are executable by running `chmod +x` before use.
     direct: true
     verify: false
     skip-failed: false
+    slow-mode: false
     dry-run: false
 	log-level: info
 	json: false
