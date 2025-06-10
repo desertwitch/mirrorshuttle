@@ -157,14 +157,18 @@ func (prog *program) copyAndRemove(ctx context.Context, src string, dst string) 
 	defer func() {
 		if retErr != nil {
 			if _, err := prog.fsys.Stat(src); err == nil {
-				_ = prog.fsys.Remove(workingFile)
+				if err := prog.fsys.Remove(workingFile); err == nil {
+					prog.log.Info("incomplete file removed", "op", prog.opts.Mode+"_cleanup", "path", workingFile)
+				} else if !errors.Is(err, os.ErrNotExist) {
+					prog.log.Error("incomplete file not removed", "op", prog.opts.Mode+"_cleanup", "path", workingFile, "error", err, "reason", "error_occurred")
+				}
 			} else if errors.Is(err, os.ErrNotExist) {
 				prog.log.Warn("file not found", "op", prog.opts.Mode+"_cleanup", "path", src)
-				prog.log.Warn("file not removed", "op", prog.opts.Mode+"_cleanup", "path", workingFile, "reason", "src_no_longer_exists")
+				prog.log.Warn("incomplete file not removed", "op", prog.opts.Mode+"_cleanup", "path", workingFile, "reason", "src_no_longer_exists")
 			} else {
 				prog.log.Error("failed to stat", "op", prog.opts.Mode+"_cleanup", "path", src, "error", err)
-				prog.log.Warn("file not removed", "op", prog.opts.Mode+"_cleanup", "path", src, "reason", "src_existence_unknown")
-				prog.log.Warn("file not removed", "op", prog.opts.Mode+"_cleanup", "path", workingFile, "reason", "src_existence_unknown")
+				prog.log.Warn("incomplete file not removed", "op", prog.opts.Mode+"_cleanup", "path", src, "reason", "src_existence_unknown")
+				prog.log.Warn("incomplete file not removed", "op", prog.opts.Mode+"_cleanup", "path", workingFile, "reason", "src_existence_unknown")
 			}
 		}
 	}()
