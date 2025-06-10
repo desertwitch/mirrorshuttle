@@ -85,8 +85,9 @@ issues:
         # Exclude some linters from running on tests files.
         - path: _test\.go
           linters:
-            - tparallel
-            - revive
+            - dogsled
+            - err113
             - funlen
             - ireturn
-            - err113
+            - revive
+            - tparallel

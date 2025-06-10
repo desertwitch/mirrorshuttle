@@ -569,8 +569,13 @@ func Test_Unit_CopyAndRemove_Success(t *testing.T) {
 	require.NoError(t, err)
 
 	prog, _, _ := setupTestProgram(fs, nil)
-	err = prog.copyAndRemove(t.Context(), "/src/file.txt", "/dst/file.txt")
+	srcHash, dstHash, verifyHash, err := prog.copyAndRemove(t.Context(), "/src/file.txt", "/dst/file.txt")
 	require.NoError(t, err)
+
+	// Verify that the expected hashes were received.
+	require.NotEmpty(t, srcHash)
+	require.NotEmpty(t, dstHash)
+	require.Empty(t, verifyHash)
 
 	// Verify source is removed.
 	_, err = fs.Stat("/src/file.txt")
@@ -596,8 +601,11 @@ func Test_Unit_CopyAndRemove_Verify_Success(t *testing.T) {
 	prog, _, _ := setupTestProgram(fs, nil)
 	prog.opts.Verify = true
 
-	err = prog.copyAndRemove(t.Context(), "/src/file.txt", "/dst/file.txt")
+	_, _, verifyHash, err := prog.copyAndRemove(t.Context(), "/src/file.txt", "/dst/file.txt")
 	require.NoError(t, err)
+
+	// Verify that the expected hash was received.
+	require.NotEmpty(t, verifyHash)
 
 	// Verify source is removed.
 	_, err = fs.Stat("/src/file.txt")
@@ -625,7 +633,7 @@ func Test_Unit_CopyAndRemove_DstTmpFileExists_Success(t *testing.T) {
 
 	prog, _, _ := setupTestProgram(fs, nil)
 
-	err := prog.copyAndRemove(t.Context(), "/src/file.txt", "/dst/file.txt")
+	_, _, _, err := prog.copyAndRemove(t.Context(), "/src/file.txt", "/dst/file.txt")
 	require.NoError(t, err)
 
 	_, err = fs.Stat("/dst/file.txt")
@@ -647,7 +655,13 @@ func Test_Unit_CopyAndRemove_SourceNotFound_Error(t *testing.T) {
 	fs := setupTestFs()
 
 	prog, _, _ := setupTestProgram(fs, nil)
-	err := prog.copyAndRemove(t.Context(), "/nonexistent/file.txt", "/dst/file.txt")
+	srcHash, dstHash, verifyHash, err := prog.copyAndRemove(t.Context(), "/nonexistent/file.txt", "/dst/file.txt")
+
+	// Verify that the expected hashes were received.
+	require.Empty(t, srcHash)
+	require.Empty(t, dstHash)
+	require.Empty(t, verifyHash)
+
 	require.ErrorIs(t, err, os.ErrNotExist)
 }
 
@@ -668,7 +682,7 @@ func Test_Unit_CopyAndRemove_CtxCancel_Error(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
 	cancel()
 
-	err = prog.copyAndRemove(ctx, "/src/file.txt", "/dst/file.txt")
+	_, _, _, err = prog.copyAndRemove(ctx, "/src/file.txt", "/dst/file.txt")
 	require.ErrorIs(t, err, context.Canceled)
 
 	// Verify source file is not removed.

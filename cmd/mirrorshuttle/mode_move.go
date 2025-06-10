@@ -120,11 +120,24 @@ func (prog *program) moveFiles(ctx context.Context) error {
 			}
 
 			// Do the regular copy and remove operation and handle any failures.
-			if err := prog.copyAndRemove(ctx, path, movePath); err != nil {
+			srcHash, dstHash, verifyHash, err := prog.copyAndRemove(ctx, path, movePath)
+			if err != nil {
 				return prog.walkError(fmt.Errorf("failed to move: %q -x-> %q (%w)", path, movePath, err))
 			}
 
-			prog.log.Info("file moved", "op", prog.opts.Mode, "mode", "c+r", "src", path, "dst", movePath, "dry-run", prog.opts.DryRun)
+			// Output the BLAKE3 hashes for this operation as well, as parsing programs may care about them.
+			prog.log.Info(
+				"file moved",
+				"op", prog.opts.Mode,
+				"mode", "c+r",
+				"src", path,
+				"dst", movePath,
+				"srcHash", srcHash,
+				"dstHash", dstHash,
+				"verifyHash", verifyHash,
+				"verify", prog.opts.Verify,
+				"dry-run", prog.opts.DryRun,
+			)
 		} else {
 			prog.log.Info("file moved", "op", prog.opts.Mode, "mode", "none", "src", path, "dst", movePath, "dry-run", prog.opts.DryRun)
 		}
@@ -137,18 +150,18 @@ func (prog *program) moveFiles(ctx context.Context) error {
 	return nil
 }
 
-func (prog *program) copyAndRemove(ctx context.Context, src string, dst string) (retErr error) {
+func (prog *program) copyAndRemove(ctx context.Context, src string, dst string) (srcHash string, dstHash string, verifyHash string, retErr error) {
 	workingFile := dst + ".mirsht" // We work on a temporary file first.
 
 	in, err := prog.fsys.Open(src)
 	if err != nil {
-		return fmt.Errorf("failed to open: %q (%w)", src, err)
+		return srcHash, dstHash, verifyHash, fmt.Errorf("failed to open: %q (%w)", src, err)
 	}
 	defer in.Close()
 
 	out, err := prog.fsys.Create(workingFile)
 	if err != nil {
-		return fmt.Errorf("failed to open: %q (%w)", workingFile, err)
+		return srcHash, dstHash, verifyHash, fmt.Errorf("failed to open: %q (%w)", workingFile, err)
 	}
 	defer out.Close()
 
@@ -178,30 +191,30 @@ func (prog *program) copyAndRemove(ctx context.Context, src string, dst string) 
 	multiWriter := io.MultiWriter(out, dstHasher)
 
 	if _, err := io.Copy(multiWriter, ctxReader); err != nil {
-		return fmt.Errorf("failed during io: %w", err)
+		return srcHash, dstHash, verifyHash, fmt.Errorf("failed during io: %w", err)
 	}
 
 	if err := out.Sync(); err != nil {
-		return fmt.Errorf("failed during sync: %w", err)
+		return srcHash, dstHash, verifyHash, fmt.Errorf("failed during sync: %w", err)
 	}
 
 	if err := in.Close(); err != nil {
-		return fmt.Errorf("failed to close: %q (%w)", src, err)
+		return srcHash, dstHash, verifyHash, fmt.Errorf("failed to close: %q (%w)", src, err)
 	}
 
 	if err := out.Close(); err != nil {
-		return fmt.Errorf("failed to close: %q (%w)", workingFile, err)
+		return srcHash, dstHash, verifyHash, fmt.Errorf("failed to close: %q (%w)", workingFile, err)
 	}
 
-	srcChecksum := hex.EncodeToString(srcHasher.Sum(nil))
-	dstChecksum := hex.EncodeToString(dstHasher.Sum(nil))
+	srcHash = hex.EncodeToString(srcHasher.Sum(nil))
+	dstHash = hex.EncodeToString(dstHasher.Sum(nil))
 
-	if srcChecksum != dstChecksum {
-		return fmt.Errorf("%w: %q (%s) != %q (%s)", errMemoryHashMismatch, src, srcChecksum, workingFile, dstChecksum)
+	if srcHash != dstHash {
+		return srcHash, dstHash, verifyHash, errMemoryHashMismatch
 	}
 
 	if err := prog.fsys.Rename(workingFile, dst); err != nil {
-		return fmt.Errorf("failed to rename: %q -x-> %q (%w)", workingFile, dst, err)
+		return srcHash, dstHash, verifyHash, fmt.Errorf("failed to rename: %q -x-> %q (%w)", workingFile, dst, err)
 	}
 
 	workingFile = dst // We work on the actual destination file now.
@@ -211,29 +224,30 @@ func (prog *program) copyAndRemove(ctx context.Context, src string, dst string) 
 
 		verifier, err := prog.fsys.Open(workingFile)
 		if err != nil {
-			return fmt.Errorf("failed to re-open for --verify pass: %q (%w)", workingFile, err)
+			return srcHash, dstHash, verifyHash, fmt.Errorf("failed to re-open for --verify pass: %q (%w)", workingFile, err)
 		}
 		defer verifier.Close()
 
 		ctxReader := &contextReader{ctx, verifier}
 
 		if _, err := io.Copy(verifyHasher, ctxReader); err != nil {
-			return fmt.Errorf("failed to re-read for --verify pass: %q (%w)", workingFile, err)
+			return srcHash, dstHash, verifyHash, fmt.Errorf("failed to re-read for --verify pass: %q (%w)", workingFile, err)
 		}
 
 		if err := verifier.Close(); err != nil {
-			return fmt.Errorf("failed to close after --verify pass: %q (%w)", workingFile, err)
+			return srcHash, dstHash, verifyHash, fmt.Errorf("failed to close after --verify pass: %q (%w)", workingFile, err)
 		}
 
-		verifyChecksum := hex.EncodeToString(verifyHasher.Sum(nil))
-		if verifyChecksum != srcChecksum {
-			return fmt.Errorf("%w: %q (%s) != %q (%s)", errVerifyHashMismatch, src, srcChecksum, workingFile, verifyChecksum)
+		verifyHash = hex.EncodeToString(verifyHasher.Sum(nil))
+
+		if verifyHash != srcHash {
+			return srcHash, dstHash, verifyHash, errVerifyHashMismatch
 		}
 	}
 
 	if err := prog.fsys.Remove(src); err != nil {
-		return fmt.Errorf("failed to remove (after move): %q (%w)", src, err)
+		return srcHash, dstHash, verifyHash, fmt.Errorf("failed to remove (after move): %q (%w)", src, err)
 	}
 
-	return nil
+	return srcHash, dstHash, verifyHash, nil
 }
