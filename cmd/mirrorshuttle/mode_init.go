@@ -13,6 +13,8 @@ import (
 )
 
 func (prog *program) createMirrorStructure(ctx context.Context) error {
+	dirsCreated := 0
+
 	// The real root needs to exist, otherwise we have nowhere to mirror from.
 	if _, err := prog.fsys.Stat(prog.opts.RealRoot); errors.Is(err, os.ErrNotExist) {
 		return fmt.Errorf("%w: %q", errTargetNotExist, prog.opts.RealRoot)
@@ -119,8 +121,11 @@ func (prog *program) createMirrorStructure(ctx context.Context) error {
 			if err := prog.fsys.Mkdir(mirrorPath, dirBasePerm); err != nil {
 				return prog.walkError(fmt.Errorf("failed to create: %q (%w)", mirrorPath, err))
 			}
-			if prog.opts.SlowMode {
-				time.Sleep(slowTimeout)
+			dirsCreated++
+
+			if prog.opts.SlowMode && dirsCreated > dirCreationBatch {
+				time.Sleep(dirCreationTimeout)
+				dirsCreated = 0 // Reset the counter after timeout has passed.
 			}
 		}
 		prog.log.Info("directory created", "op", prog.opts.Mode, "path", mirrorPath, "slow-mode", prog.opts.SlowMode, "dry-run", prog.opts.DryRun)

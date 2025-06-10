@@ -100,8 +100,8 @@ system locations; ensure they are executable by running `chmod +x` before use.
 		Default: false
 
 	--slow-mode
-		Optional. Adds a 100 millisecond timeout after each directory creation
-		in `--mode=init` to avoid thrashing more sensitive filesystems.
+		Optional. Adds a 1 second timeout after each 50 directories created
+		in `--mode=init`; helps avoid thrashing more sensitive filesystems.
 
 		Default: false
 
@@ -252,11 +252,13 @@ const (
 	exitCodeUnmovedFiles   = 4
 	exitCodeConfigFailure  = 5
 
+	dirCreationBatch   = 50
+	dirCreationTimeout = 1 * time.Second
+
 	dirBasePerm     = 0o777
 	defaultLogLevel = slog.LevelInfo
 
 	exitTimeout = 10 * time.Second
-	slowTimeout = 100 * time.Millisecond
 )
 
 var (
