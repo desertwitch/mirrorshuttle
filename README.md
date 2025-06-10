@@ -128,7 +128,7 @@ system locations; ensure they are executable by running `chmod +x` before use.
         Default: false
 
     --slow-mode
-        Optional. Adds a 250 millisecond timeout after each directory creation
+        Optional. Adds a 100 millisecond timeout after each directory creation
         in `--mode=init` to avoid thrashing more sensitive filesystems.
 
         Default: false
