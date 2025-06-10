@@ -246,7 +246,7 @@ const (
 	exitCodeConfigFailure  = 5
 
 	dirBasePerm = 0o777
-	exitTimeout = 60 * time.Second
+	exitTimeout = 10 * time.Second
 )
 
 var (
@@ -336,7 +336,7 @@ func main() {
 		return
 
 	case <-sigChan:
-		prog.log.Warn("received interrupt signal; shutting down (waiting up to 60s)...")
+		prog.log.Warn("received interrupt signal; shutting down (waiting up to 10s)...", "op", prog.opts.Mode)
 		cancel()
 
 		select {
@@ -346,7 +346,7 @@ func main() {
 			return
 
 		case <-time.After(exitTimeout):
-			prog.log.Error("fatal: timed out while waiting for program exit; killing...")
+			prog.log.Error("fatal: timed out while waiting for program exit; killing...", "op", prog.opts.Mode)
 			exitCode = exitCodeFailure
 
 			return
@@ -391,7 +391,7 @@ func newProgram(cliArgs []string, fsys afero.Fs, stdout io.Writer, stderr io.Wri
 func (prog *program) run(ctx context.Context) (retExitCode int, retError error) {
 	defer func() {
 		if r := recover(); r != nil {
-			prog.log.Error("panic recovered", "error", r)
+			prog.log.Error("panic recovered", "op", prog.opts.Mode, "error", r)
 			debug.PrintStack()
 			retExitCode = exitCodeFailure
 		}
@@ -402,26 +402,26 @@ func (prog *program) run(ctx context.Context) (retExitCode int, retError error) 
 			return
 		}
 		if syncable, ok := prog.fsys.(interface{ Sync() error }); ok {
-			prog.log.Info("syncing filesystems...")
+			prog.log.Info("syncing filesystems...", "op", prog.opts.Mode)
 			if err := syncable.Sync(); err == nil {
-				prog.log.Info("filesystems synced")
+				prog.log.Info("filesystems synced", "op", prog.opts.Mode)
 			} else {
-				prog.log.Error("failed syncing filesystems", "error", err)
+				prog.log.Error("failed syncing filesystems", "op", prog.opts.Mode, "error", err)
 			}
 		}
 	}()
 
 	if prog.opts.DryRun {
-		prog.log.Warn("running in dry mode - no changes will be made")
+		prog.log.Warn("running in dry mode - no changes will be made", "op", prog.opts.Mode)
 	}
 
 	switch prog.opts.Mode {
 	case "init":
-		prog.log.Info("setting up the mirror structure...")
+		prog.log.Info("setting up the mirror structure...", "op", prog.opts.Mode)
 
 		if err := prog.createMirrorStructure(ctx); err != nil {
 			if !errors.Is(err, context.Canceled) {
-				prog.log.Error("fatal: failed creating mirror structure", "error", err)
+				prog.log.Error("fatal: failed creating mirror structure", "op", prog.opts.Mode, "error", err)
 			}
 
 			if errors.Is(err, errMirrorNotEmpty) {
@@ -432,11 +432,11 @@ func (prog *program) run(ctx context.Context) (retExitCode int, retError error) 
 		}
 
 	case "move":
-		prog.log.Info("checking the mirror for files to move...")
+		prog.log.Info("checking the mirror for files to move...", "op", prog.opts.Mode)
 
 		if err := prog.moveFiles(ctx); err != nil {
 			if !errors.Is(err, context.Canceled) {
-				prog.log.Error("fatal: failed moving to real structure", "error", err)
+				prog.log.Error("fatal: failed moving to real structure", "op", prog.opts.Mode, "error", err)
 			}
 
 			return exitCodeFailure, fmt.Errorf("failed moving to real structure: %w", err)
@@ -448,18 +448,18 @@ func (prog *program) run(ctx context.Context) (retExitCode int, retError error) 
 	}
 
 	if prog.hasPartialFailures {
-		prog.log.Warn("mode has completed, but with partial failures; exiting...")
+		prog.log.Warn("mode has completed, but with partial failures; exiting...", "op", prog.opts.Mode)
 
 		return exitCodePartialFailure, nil
 	}
 
 	if prog.hasUnmovedFiles {
-		prog.log.Warn("mode has completed, but with unmoved files; exiting...")
+		prog.log.Warn("mode has completed, but with unmoved files; exiting...", "op", prog.opts.Mode)
 
 		return exitCodeUnmovedFiles, nil
 	}
 
-	prog.log.Info("success: mode has completed; exiting...")
+	prog.log.Info("mode has completed; exiting...", "op", prog.opts.Mode)
 
 	return exitCodeSuccess, nil
 }

@@ -569,7 +569,7 @@ func Test_Unit_CopyAndRemove_Success(t *testing.T) {
 	require.NoError(t, err)
 
 	prog, _, _ := setupTestProgram(fs, nil)
-	err = prog.copyAndRemove("/src/file.txt", "/dst/file.txt")
+	err = prog.copyAndRemove(t.Context(), "/src/file.txt", "/dst/file.txt")
 	require.NoError(t, err)
 
 	// Verify source is removed.
@@ -596,7 +596,7 @@ func Test_Unit_CopyAndRemove_Verify_Success(t *testing.T) {
 	prog, _, _ := setupTestProgram(fs, nil)
 	prog.opts.Verify = true
 
-	err = prog.copyAndRemove("/src/file.txt", "/dst/file.txt")
+	err = prog.copyAndRemove(t.Context(), "/src/file.txt", "/dst/file.txt")
 	require.NoError(t, err)
 
 	// Verify source is removed.
@@ -625,7 +625,7 @@ func Test_Unit_CopyAndRemove_DstTmpFileExists_Success(t *testing.T) {
 
 	prog, _, _ := setupTestProgram(fs, nil)
 
-	err := prog.copyAndRemove("/src/file.txt", "/dst/file.txt")
+	err := prog.copyAndRemove(t.Context(), "/src/file.txt", "/dst/file.txt")
 	require.NoError(t, err)
 
 	_, err = fs.Stat("/dst/file.txt")
@@ -647,6 +647,39 @@ func Test_Unit_CopyAndRemove_SourceNotFound_Error(t *testing.T) {
 	fs := setupTestFs()
 
 	prog, _, _ := setupTestProgram(fs, nil)
-	err := prog.copyAndRemove("/nonexistent/file.txt", "/dst/file.txt")
+	err := prog.copyAndRemove(t.Context(), "/nonexistent/file.txt", "/dst/file.txt")
+	require.ErrorIs(t, err, os.ErrNotExist)
+}
+
+// Expectation: The function should respond to a mid-transfer context cancellation.
+func Test_Unit_CopyAndRemove_CtxCancel_Error(t *testing.T) {
+	t.Parallel()
+
+	fs := setupTestFs()
+	files := map[string]string{
+		"/src/file.txt": "test content",
+	}
+	err := createFiles(fs, files)
+	require.NoError(t, err)
+
+	prog, _, _ := setupTestProgram(fs, nil)
+	prog.opts.Verify = true
+
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+
+	err = prog.copyAndRemove(ctx, "/src/file.txt", "/dst/file.txt")
+	require.ErrorIs(t, err, context.Canceled)
+
+	// Verify source file is not removed.
+	_, err = fs.Stat("/src/file.txt")
+	require.NoError(t, err)
+
+	// Verify temporary file is removed.
+	_, err = fs.Stat("/dst/file.txt.mirsht")
+	require.ErrorIs(t, err, os.ErrNotExist)
+
+	// Verify destination file does not exist.
+	_, err = fs.Stat("/dst/file.txt")
 	require.ErrorIs(t, err, os.ErrNotExist)
 }

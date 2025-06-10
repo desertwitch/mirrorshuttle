@@ -37,7 +37,7 @@ func (prog *program) moveFiles(ctx context.Context) error {
 
 		if err != nil {
 			if errors.Is(err, os.ErrNotExist) {
-				prog.log.Warn("path skipped", "path", path, "reason", "no_longer_exists")
+				prog.log.Warn("path skipped", "op", prog.opts.Mode, "path", path, "reason", "no_longer_exists")
 
 				// An element has disappeared during the walk, skip it.
 				return nil
@@ -48,7 +48,7 @@ func (prog *program) moveFiles(ctx context.Context) error {
 		}
 
 		if isExcluded(path, prog.opts.Excludes) { // Check if the source path is excluded.
-			prog.log.Warn("path skipped", "path", path, "reason", "is_user_excluded")
+			prog.log.Warn("path skipped", "op", prog.opts.Mode, "path", path, "reason", "is_user_excluded")
 
 			// The source path was among the user's excluded paths, skip it.
 			if e.IsDir() {
@@ -66,14 +66,14 @@ func (prog *program) moveFiles(ctx context.Context) error {
 		movePath := filepath.Join(prog.opts.RealRoot, relPath)
 
 		if movePath == prog.opts.MirrorRoot { // Check if target path is the mirror root.
-			prog.log.Warn("path skipped", "path", movePath, "reason", "mirror_into_mirror")
+			prog.log.Warn("path skipped", "op", prog.opts.Mode, "path", movePath, "reason", "mirror_into_mirror")
 
 			// The target path is the mirror root, skip it (prevent insane recursion).
 			return filepath.SkipDir
 		}
 
 		if isExcluded(movePath, prog.opts.Excludes) { // Check if the target path is excluded.
-			prog.log.Warn("path skipped", "path", movePath, "reason", "is_user_excluded")
+			prog.log.Warn("path skipped", "op", prog.opts.Mode, "path", movePath, "reason", "is_user_excluded")
 
 			// The target path was among the user's excluded paths, skip it.
 			if e.IsDir() {
@@ -86,13 +86,13 @@ func (prog *program) moveFiles(ctx context.Context) error {
 		if e.IsDir() { // Handle directories.
 			if _, err := prog.fsys.Stat(movePath); errors.Is(err, os.ErrNotExist) { // Check if the target directory exists.
 				if prog.opts.DryRun {
-					prog.log.Info("[dry-mode] directory created", "path", movePath)
+					prog.log.Info("[dry-mode] directory created", "op", prog.opts.Mode, "path", movePath)
 				} else {
 					// Create the target directory, if it does not exist.
 					if err := prog.fsys.Mkdir(movePath, dirBasePerm); err != nil {
 						return prog.walkError(fmt.Errorf("failed to create: %q (%w)", movePath, err))
 					}
-					prog.log.Info("directory created", "path", movePath)
+					prog.log.Info("directory created", "op", prog.opts.Mode, "path", movePath)
 				}
 			} else if err != nil {
 				return prog.walkError(fmt.Errorf("failed to stat: %q (%w)", movePath, err))
@@ -103,7 +103,7 @@ func (prog *program) moveFiles(ctx context.Context) error {
 
 		if _, err := prog.fsys.Stat(movePath); err == nil { // Check if the target file exists.
 			prog.hasUnmovedFiles = true
-			prog.log.Warn("target already exists", "src", path, "dst", movePath, "action", "skipped")
+			prog.log.Warn("target already exists", "op", prog.opts.Mode, "src", path, "dst", movePath, "action", "skipped")
 
 			// The target file exists; do not overwrite it, set unmoved files bit and skip it.
 			return nil
@@ -112,23 +112,23 @@ func (prog *program) moveFiles(ctx context.Context) error {
 		}
 
 		if prog.opts.DryRun {
-			prog.log.Info("[dry-mode] file moved", "src", path, "dst", movePath)
+			prog.log.Info("[dry-mode] file moved", "op", prog.opts.Mode, "src", path, "dst", movePath)
 		} else {
 			if prog.opts.Direct {
 				// Direct mode; attempt a rename syscall, otherwise copy and remove.
 				if err := prog.fsys.Rename(path, movePath); err == nil {
-					prog.log.Info("file moved", "mode", "direct", "src", path, "dst", movePath)
+					prog.log.Info("file moved", "op", prog.opts.Mode, "mode", "direct", "src", path, "dst", movePath)
 
 					return nil
 				} // Rename syscall must have failed from here downwards.
 			}
 
 			// Do the regular copy and remove operation and handle any failures.
-			if err := prog.copyAndRemove(path, movePath); err != nil {
+			if err := prog.copyAndRemove(ctx, path, movePath); err != nil {
 				return prog.walkError(fmt.Errorf("failed to move: %q -x-> %q (%w)", path, movePath, err))
 			}
 
-			prog.log.Info("file moved", "mode", "c+r", "src", path, "dst", movePath)
+			prog.log.Info("file moved", "op", prog.opts.Mode, "mode", "c+r", "src", path, "dst", movePath)
 		}
 
 		return nil
@@ -139,7 +139,7 @@ func (prog *program) moveFiles(ctx context.Context) error {
 	return nil
 }
 
-func (prog *program) copyAndRemove(src string, dst string) (retErr error) {
+func (prog *program) copyAndRemove(ctx context.Context, src string, dst string) (retErr error) {
 	workingFile := dst + ".mirsht" // We work on a temporary file first.
 
 	in, err := prog.fsys.Open(src)
@@ -159,12 +159,12 @@ func (prog *program) copyAndRemove(src string, dst string) (retErr error) {
 			if _, err := prog.fsys.Stat(src); err == nil {
 				_ = prog.fsys.Remove(workingFile)
 			} else if errors.Is(err, os.ErrNotExist) {
-				prog.log.Warn("cleanup: file not found", "path", src)
-				prog.log.Warn("cleanup: file not removed", "path", workingFile)
+				prog.log.Warn("file not found", "op", prog.opts.Mode+"_cleanup", "path", src)
+				prog.log.Warn("file not removed", "op", prog.opts.Mode+"_cleanup", "path", workingFile, "reason", "src_no_longer_exists")
 			} else {
-				prog.log.Error("cleanup: failed to stat", "path", src, "error", err)
-				prog.log.Warn("cleanup: file not removed", "path", src)
-				prog.log.Warn("cleanup: file not removed", "path", workingFile)
+				prog.log.Error("failed to stat", "op", prog.opts.Mode+"_cleanup", "path", src, "error", err)
+				prog.log.Warn("file not removed", "op", prog.opts.Mode+"_cleanup", "path", src, "reason", "src_existence_unknown")
+				prog.log.Warn("file not removed", "op", prog.opts.Mode+"_cleanup", "path", workingFile, "reason", "src_existence_unknown")
 			}
 		}
 	}()
@@ -172,10 +172,10 @@ func (prog *program) copyAndRemove(src string, dst string) (retErr error) {
 	srcHasher := blake3.New()
 	dstHasher := blake3.New()
 
-	multiReader := io.TeeReader(in, srcHasher)
+	ctxReader := &contextReader{ctx, io.TeeReader(in, srcHasher)}
 	multiWriter := io.MultiWriter(out, dstHasher)
 
-	if _, err := io.Copy(multiWriter, multiReader); err != nil {
+	if _, err := io.Copy(multiWriter, ctxReader); err != nil {
 		return fmt.Errorf("failed during io: %w", err)
 	}
 
@@ -213,7 +213,9 @@ func (prog *program) copyAndRemove(src string, dst string) (retErr error) {
 		}
 		defer verifier.Close()
 
-		if _, err := io.Copy(verifyHasher, verifier); err != nil {
+		ctxReader := &contextReader{ctx, verifier}
+
+		if _, err := io.Copy(verifyHasher, ctxReader); err != nil {
 			return fmt.Errorf("failed to re-read for --verify pass: %q (%w)", workingFile, err)
 		}
 

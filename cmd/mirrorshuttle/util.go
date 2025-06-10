@@ -1,7 +1,9 @@
 package main
 
 import (
+	"context"
 	"fmt"
+	"io"
 	"log/slog"
 	"path/filepath"
 	"strings"
@@ -21,10 +23,25 @@ func (s *excludeArg) Set(value string) error {
 	return nil
 }
 
+func parseLogLevel(levelStr string) (slog.Level, error) {
+	switch strings.TrimSpace(levelStr) {
+	case "debug":
+		return slog.LevelDebug, nil
+	case "info":
+		return slog.LevelInfo, nil
+	case "warn", "warning":
+		return slog.LevelWarn, nil
+	case "error":
+		return slog.LevelError, nil
+	default:
+		return slog.LevelInfo, errArgInvalidLogLevel
+	}
+}
+
 func (prog *program) walkError(err error) error {
 	if prog.opts.SkipFailed {
 		prog.hasPartialFailures = true
-		prog.log.Error("path skipped", "error", err, "reason", "error_occurred")
+		prog.log.Error("path skipped", "op", prog.opts.Mode, "error", err, "reason", "error_occurred")
 
 		return nil
 	}
@@ -47,17 +64,20 @@ func isExcluded(path string, excludes []string) bool {
 	return false
 }
 
-func parseLogLevel(levelStr string) (slog.Level, error) {
-	switch strings.TrimSpace(levelStr) {
-	case "debug":
-		return slog.LevelDebug, nil
-	case "info":
-		return slog.LevelInfo, nil
-	case "warn", "warning":
-		return slog.LevelWarn, nil
-	case "error":
-		return slog.LevelError, nil
+// contextReader is an implementation of [io.Reader] that is Context-aware for
+// receiving mid-transfer cancellation.
+type contextReader struct {
+	ctx    context.Context //nolint:containedctx
+	reader io.Reader
+}
+
+// Read wraps the [io.Reader] reading function while being aware of and handling
+// any mid-transfer Context cancellations.
+func (cr *contextReader) Read(p []byte) (int, error) {
+	select {
+	case <-cr.ctx.Done():
+		return 0, context.Canceled
 	default:
-		return slog.LevelInfo, errArgInvalidLogLevel
+		return cr.reader.Read(p) //nolint:wrapcheck
 	}
 }
