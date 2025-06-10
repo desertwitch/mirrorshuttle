@@ -386,7 +386,7 @@ func Test_Unit_MoveFiles_CreateTargetNestedDirs_Success(t *testing.T) {
 }
 
 // Expectation: The function should not complain if nothing is to be moved.
-func TestMoveFiles_EmptyMirror_Success(t *testing.T) {
+func Test_Unit_MoveFiles_EmptyMirror_Success(t *testing.T) {
 	t.Parallel()
 
 	fs := setupTestFs()
