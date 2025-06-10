@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"os"
@@ -81,6 +82,85 @@ func createFiles(fs afero.Fs, files map[string]string) error {
 	}
 
 	return nil
+}
+
+// The program should run init mode with only the required CLI arguments.
+func Test_Integ_Run_ValidInitMode_Success(t *testing.T) {
+	t.Parallel()
+
+	fs := setupTestFs()
+	err := createDirStructure(fs, []string{"/real/dir1"})
+	require.NoError(t, err)
+
+	var stdout, stderr bytes.Buffer
+	args := []string{"program", "--mode=init", "--mirror=/mirror", "--target=/real"}
+
+	prog, _ := newProgram(args, fs, &stdout, &stderr, false)
+	require.NotNil(t, prog)
+
+	exitCode, err := prog.run(t.Context())
+	require.NoError(t, err)
+
+	require.Equal(t, exitCodeSuccess, exitCode)
+}
+
+// Expectation: The program should run move mode with only the required CLI arguments.
+func Test_Integ_Run_ValidMoveMode_Success(t *testing.T) {
+	t.Parallel()
+
+	fs := setupTestFs()
+	err := createDirStructure(fs, []string{"/mirror", "/real"})
+	require.NoError(t, err)
+
+	files := map[string]string{
+		"/mirror/file.txt": "content",
+	}
+	err = createFiles(fs, files)
+	require.NoError(t, err)
+
+	var stdout, stderr bytes.Buffer
+	args := []string{"program", "--mode=move", "--mirror=/mirror", "--target=/real"}
+
+	prog, _ := newProgram(args, fs, &stdout, &stderr, false)
+	require.NotNil(t, prog)
+
+	exitCode, err := prog.run(t.Context())
+	require.NoError(t, err)
+
+	require.Equal(t, exitCodeSuccess, exitCode)
+}
+
+// Expectation: The program should only produce JSON (on standard error) when in JSON mode.
+func Test_Integ_Run_JsonMode_Success(t *testing.T) {
+	t.Parallel()
+
+	fs := setupTestFs()
+	err := createDirStructure(fs, []string{"/real/dir1"})
+	require.NoError(t, err)
+
+	var stdout, stderr bytes.Buffer
+	args := []string{"program", "--mode=init", "--mirror=/mirror", "--target=/real", "--json"}
+
+	prog, _ := newProgram(args, fs, &stdout, &stderr, false)
+	require.NotNil(t, prog)
+
+	exitCode, err := prog.run(t.Context())
+	require.NoError(t, err)
+	require.Equal(t, exitCodeSuccess, exitCode)
+
+	stderrStr := strings.TrimSpace(stderr.String())
+	require.NotEmpty(t, stderrStr)
+
+	lines := strings.Split(strings.TrimSpace(stderr.String()), "\n")
+	for i, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		var v any
+		err := json.Unmarshal([]byte(line), &v)
+		require.NoErrorf(t, err, "stderr line %d is not valid JSON: %q", i+1, line)
+	}
 }
 
 // Expectation: The program should run with a configuration file.
@@ -295,52 +375,6 @@ exclude:
 
 	_, err = fs.Stat("/mirror/exclude2")
 	require.ErrorIs(t, err, os.ErrNotExist)
-}
-
-// The program should run init mode with only the required CLI arguments.
-func Test_Integ_Run_ValidInitMode_Success(t *testing.T) {
-	t.Parallel()
-
-	fs := setupTestFs()
-	err := createDirStructure(fs, []string{"/real/dir1"})
-	require.NoError(t, err)
-
-	var stdout, stderr bytes.Buffer
-	args := []string{"program", "--mode=init", "--mirror=/mirror", "--target=/real"}
-
-	prog, _ := newProgram(args, fs, &stdout, &stderr, false)
-	require.NotNil(t, prog)
-
-	exitCode, err := prog.run(t.Context())
-	require.NoError(t, err)
-
-	require.Equal(t, exitCodeSuccess, exitCode)
-}
-
-// Expectation: The program should run move mode with only the required CLI arguments.
-func Test_Integ_Run_ValidMoveMode_Success(t *testing.T) {
-	t.Parallel()
-
-	fs := setupTestFs()
-	err := createDirStructure(fs, []string{"/mirror", "/real"})
-	require.NoError(t, err)
-
-	files := map[string]string{
-		"/mirror/file.txt": "content",
-	}
-	err = createFiles(fs, files)
-	require.NoError(t, err)
-
-	var stdout, stderr bytes.Buffer
-	args := []string{"program", "--mode=move", "--mirror=/mirror", "--target=/real"}
-
-	prog, _ := newProgram(args, fs, &stdout, &stderr, false)
-	require.NotNil(t, prog)
-
-	exitCode, err := prog.run(t.Context())
-	require.NoError(t, err)
-
-	require.Equal(t, exitCodeSuccess, exitCode)
 }
 
 // Expectation: The program should produce the partial failure exit code.
