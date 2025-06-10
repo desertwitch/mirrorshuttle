@@ -129,7 +129,7 @@ func (prog *program) createMirrorStructure(ctx context.Context) error {
 			}
 		}
 
-		if prog.opts.SlowMode {
+		if !prog.opts.DryRun && prog.opts.SlowMode {
 			prog.log.Info(
 				"directory created",
 				"op", prog.opts.Mode,
