@@ -272,17 +272,18 @@ var (
 )
 
 type program struct {
-	fsys     afero.Fs
-	stdout   io.Writer
-	stderr   io.Writer
-	testMode bool
-	opts     *programOptions
+	fsys   afero.Fs
+	stdout io.Writer
+	stderr io.Writer
+	opts   *programOptions
 
 	log   *slog.Logger
 	flags *flag.FlagSet
 
 	hasUnmovedFiles    bool
 	hasPartialFailures bool
+
+	provokeTestPanic bool
 }
 
 type programOptions struct {
@@ -316,7 +317,7 @@ func main() {
 
 	doneChan := make(chan int, 1)
 
-	prog, err := newProgram(os.Args, afero.NewOsFs(), os.Stdout, os.Stderr, false)
+	prog, err := newProgram(os.Args, afero.NewOsFs(), os.Stdout, os.Stderr)
 	if prog == nil || err != nil {
 		exitCode = exitCodeConfigFailure
 
@@ -353,13 +354,12 @@ func main() {
 	}
 }
 
-func newProgram(cliArgs []string, fsys afero.Fs, stdout io.Writer, stderr io.Writer, testMode bool) (*program, error) {
+func newProgram(cliArgs []string, fsys afero.Fs, stdout io.Writer, stderr io.Writer) (*program, error) {
 	prog := &program{
-		fsys:     fsys,
-		stdout:   stdout,
-		stderr:   stderr,
-		opts:     &programOptions{},
-		testMode: testMode,
+		fsys:   fsys,
+		stdout: stdout,
+		stderr: stderr,
+		opts:   &programOptions{},
 	}
 
 	if err := prog.parseArgs(cliArgs); err != nil {
@@ -441,6 +441,10 @@ func (prog *program) run(ctx context.Context) (retExitCode int, retError error) 
 
 			return exitCodeFailure, fmt.Errorf("failed moving to real structure: %w", err)
 		}
+	}
+
+	if prog.provokeTestPanic {
+		panic("testing program panic")
 	}
 
 	if prog.hasPartialFailures {

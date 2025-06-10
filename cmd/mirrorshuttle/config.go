@@ -18,12 +18,7 @@ func (prog *program) parseArgs(cliArgs []string) error {
 		yamlOpts programOptions
 	)
 
-	if !prog.testMode {
-		prog.flags = flag.NewFlagSet("prod", flag.ExitOnError)
-	} else {
-		prog.flags = flag.NewFlagSet("test", flag.ContinueOnError)
-	}
-
+	prog.flags = flag.NewFlagSet("mirrorshuttle", flag.ExitOnError)
 	prog.flags.SetOutput(prog.stderr)
 	prog.flags.Usage = func() {
 		fmt.Fprintf(prog.stderr, "usage: %q --mode=init|move --mirror=ABSPATH --target=ABSPATH\n", cliArgs[0])

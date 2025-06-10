@@ -29,7 +29,7 @@ func Test_Unit_ParseArgs_All_Success(t *testing.T) {
 		"--log-level=warn",
 	}
 
-	prog, err := newProgram(args, fs, &stdout, &stderr, true)
+	prog, err := newProgram(args, fs, &stdout, &stderr)
 	require.NoError(t, err)
 	require.NotNil(t, prog)
 
@@ -71,7 +71,7 @@ json: true
 	var stdout, stderr bytes.Buffer
 	args := []string{"program", "--mode=move", "--config=/config.yaml"}
 
-	prog, err := newProgram(args, fs, &stdout, &stderr, true)
+	prog, err := newProgram(args, fs, &stdout, &stderr)
 	require.NoError(t, err)
 	require.NotNil(t, prog)
 
@@ -127,7 +127,7 @@ log-level: invalid
 		"--log-level=warn",
 	}
 
-	prog, err := newProgram(args, fs, &stdout, &stderr, true)
+	prog, err := newProgram(args, fs, &stdout, &stderr)
 	require.NoError(t, err)
 	require.NotNil(t, prog)
 

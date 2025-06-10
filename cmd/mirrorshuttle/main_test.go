@@ -22,7 +22,7 @@ func setupTestProgram(fs afero.Fs, opts *programOptions) (prog *program, stdout 
 	if opts == nil {
 		args := []string{"program", "--mode=init", "--mirror=/mirror", "--target=/real"}
 
-		prog, err := newProgram(args, fs, stdout, stderr, false)
+		prog, err := newProgram(args, fs, stdout, stderr)
 		if err != nil {
 			panic("expected to set up a working program for testing")
 		}
@@ -31,11 +31,10 @@ func setupTestProgram(fs afero.Fs, opts *programOptions) (prog *program, stdout 
 	}
 
 	return &program{
-		fsys:     fs,
-		stdout:   stdout,
-		stderr:   stderr,
-		testMode: false,
-		opts:     opts,
+		fsys:   fs,
+		stdout: stdout,
+		stderr: stderr,
+		opts:   opts,
 		log: slog.New(slog.NewTextHandler(stderr, &slog.HandlerOptions{
 			Level: slog.LevelInfo,
 		})),
@@ -95,7 +94,7 @@ func Test_Integ_Run_ValidInitMode_Success(t *testing.T) {
 	var stdout, stderr bytes.Buffer
 	args := []string{"program", "--mode=init", "--mirror=/mirror", "--target=/real"}
 
-	prog, _ := newProgram(args, fs, &stdout, &stderr, false)
+	prog, _ := newProgram(args, fs, &stdout, &stderr)
 	require.NotNil(t, prog)
 
 	exitCode, err := prog.run(t.Context())
@@ -121,7 +120,7 @@ func Test_Integ_Run_ValidMoveMode_Success(t *testing.T) {
 	var stdout, stderr bytes.Buffer
 	args := []string{"program", "--mode=move", "--mirror=/mirror", "--target=/real"}
 
-	prog, _ := newProgram(args, fs, &stdout, &stderr, false)
+	prog, _ := newProgram(args, fs, &stdout, &stderr)
 	require.NotNil(t, prog)
 
 	exitCode, err := prog.run(t.Context())
@@ -141,7 +140,7 @@ func Test_Integ_Run_JsonMode_Success(t *testing.T) {
 	var stdout, stderr bytes.Buffer
 	args := []string{"program", "--mode=init", "--mirror=/mirror", "--target=/real", "--json"}
 
-	prog, _ := newProgram(args, fs, &stdout, &stderr, false)
+	prog, _ := newProgram(args, fs, &stdout, &stderr)
 	require.NotNil(t, prog)
 
 	exitCode, err := prog.run(t.Context())
@@ -161,6 +160,30 @@ func Test_Integ_Run_JsonMode_Success(t *testing.T) {
 		err := json.Unmarshal([]byte(line), &v)
 		require.NoErrorf(t, err, "stderr line %d is not valid JSON: %q", i+1, line)
 	}
+}
+
+// Expectation: The program should recover a panic from within the program.
+func Test_Integ_Run_RecoverPanic_Success(t *testing.T) {
+	t.Parallel()
+
+	fs := setupTestFs()
+	err := createDirStructure(fs, []string{"/mirror", "/real"})
+	require.NoError(t, err)
+
+	files := map[string]string{
+		"/real/dir1/file.txt": "content",
+	}
+	err = createFiles(fs, files)
+	require.NoError(t, err)
+
+	prog, _, stderr := setupTestProgram(fs, nil)
+	prog.provokeTestPanic = true
+
+	exitCode, err := prog.run(t.Context())
+	require.NoError(t, err)
+
+	require.Equal(t, exitCodeFailure, exitCode)
+	require.Contains(t, stderr.String(), "panic recovered")
 }
 
 // Expectation: The program should run with a configuration file.
@@ -188,7 +211,7 @@ json: true
 	var stdout, stderr bytes.Buffer
 	args := []string{"program", "--mode=init", "--config=/config.yaml"}
 
-	prog, _ := newProgram(args, fs, &stdout, &stderr, false)
+	prog, _ := newProgram(args, fs, &stdout, &stderr)
 	require.NotNil(t, prog)
 
 	require.Equal(t, "/mirror", prog.opts.MirrorRoot)
@@ -236,7 +259,7 @@ json: false
 		"--log-level=warn",
 	}
 
-	prog, _ := newProgram(args, fs, &stdout, &stderr, false)
+	prog, _ := newProgram(args, fs, &stdout, &stderr)
 	require.NotNil(t, prog)
 
 	exitCode, err := prog.run(t.Context())
@@ -295,7 +318,7 @@ exclude:
 		"--exclude=/real/exclude-by-flag", // override YAML
 	}
 
-	prog, _ := newProgram(args, fs, &stdout, &stderr, false)
+	prog, _ := newProgram(args, fs, &stdout, &stderr)
 	require.NotNil(t, prog)
 	require.True(t, prog.opts.SkipFailed)
 	require.True(t, prog.opts.Verify)
@@ -357,7 +380,7 @@ exclude:
 		"--config=/config.yaml",
 	}
 
-	prog, _ := newProgram(args, fs, &stdout, &stderr, false)
+	prog, _ := newProgram(args, fs, &stdout, &stderr)
 	require.NotNil(t, prog)
 
 	exitCode, err := prog.run(t.Context())
@@ -396,7 +419,7 @@ func Test_Integ_Run_SkipFailed_PartialFailureExitCode_Success(t *testing.T) {
 	var stdout, stderr bytes.Buffer
 	args := []string{"program", "--mode=move", "--mirror=/mirror", "--target=/real", "--skip-failed"}
 
-	prog, _ := newProgram(args, fs, &stdout, &stderr, false)
+	prog, _ := newProgram(args, fs, &stdout, &stderr)
 	exitCode, err := prog.run(t.Context())
 	require.NoError(t, err)
 
@@ -432,7 +455,7 @@ func Test_Integ_Run_NoSkipFailed_FailureExitCode_Error(t *testing.T) {
 	var stdout, stderr bytes.Buffer
 	args := []string{"program", "--mode=move", "--mirror=/mirror", "--target=/real"}
 
-	prog, _ := newProgram(args, fs, &stdout, &stderr, false)
+	prog, _ := newProgram(args, fs, &stdout, &stderr)
 	exitCode, err := prog.run(t.Context())
 	require.Error(t, err)
 
@@ -466,7 +489,7 @@ func Test_Integ_Run_UnmovedFilesExitCode_Success(t *testing.T) {
 	var stdout, stderr bytes.Buffer
 	args := []string{"program", "--mode=move", "--mirror=/mirror", "--target=/real"}
 
-	prog, _ := newProgram(args, fs, &stdout, &stderr, false)
+	prog, _ := newProgram(args, fs, &stdout, &stderr)
 	require.NotNil(t, prog)
 
 	exitCode, err := prog.run(t.Context())
@@ -491,7 +514,7 @@ func Test_Integ_Run_DryRunMode_Success(t *testing.T) {
 	var stdout, stderr bytes.Buffer
 	args := []string{"program", "--mode=init", "--mirror=/mirror", "--target=/real", "--dry-run"}
 
-	prog, _ := newProgram(args, fs, &stdout, &stderr, false)
+	prog, _ := newProgram(args, fs, &stdout, &stderr)
 	require.NotNil(t, prog)
 
 	exitCode, err := prog.run(t.Context())
@@ -514,7 +537,7 @@ func Test_Integ_Run_ExcludeSanitation_Success(t *testing.T) {
 	var stdout, stderr bytes.Buffer
 	args := []string{"program", "--mode=init", "--mirror=/mirror", "--target=/real", "--exclude=/real/dir1//", "--exclude= /real/dir2 "}
 
-	prog, _ := newProgram(args, fs, &stdout, &stderr, false)
+	prog, _ := newProgram(args, fs, &stdout, &stderr)
 	require.NotNil(t, prog)
 
 	require.Equal(t, "/real/dir1", prog.opts.Excludes[0])
@@ -538,7 +561,7 @@ func Test_Integ_Run_PathCleaning_Success(t *testing.T) {
 	var stdout, stderr bytes.Buffer
 	args := []string{"program", "--mode=init", "--mirror= /mirror// ", "--target= /real/ "}
 
-	prog, _ := newProgram(args, fs, &stdout, &stderr, false)
+	prog, _ := newProgram(args, fs, &stdout, &stderr)
 	require.NotNil(t, prog)
 
 	require.Equal(t, "/mirror", prog.opts.MirrorRoot)
@@ -561,7 +584,7 @@ func Test_Integ_Run_ValidInitMode_CtxCancel_Error(t *testing.T) {
 	var stdout, stderr bytes.Buffer
 	args := []string{"program", "--mode=init", "--mirror=/mirror", "--target=/real"}
 
-	prog, _ := newProgram(args, fs, &stdout, &stderr, false)
+	prog, _ := newProgram(args, fs, &stdout, &stderr)
 	require.NotNil(t, prog)
 
 	ctx, cancel := context.WithCancel(t.Context())
@@ -585,7 +608,7 @@ func Test_Integ_Run_ValidMoveMode_CtxCancel_Error(t *testing.T) {
 	var stdout, stderr bytes.Buffer
 	args := []string{"program", "--mode=move", "--mirror=/mirror", "--target=/real"}
 
-	prog, _ := newProgram(args, fs, &stdout, &stderr, false)
+	prog, _ := newProgram(args, fs, &stdout, &stderr)
 	require.NotNil(t, prog)
 
 	ctx, cancel := context.WithCancel(t.Context())
@@ -618,7 +641,7 @@ func Test_Integ_Run_InitNonEmptyMirrorExitCode_Error(t *testing.T) {
 	var stdout, stderr bytes.Buffer
 	args := []string{"program", "--mode=init", "--mirror=/mirror", "--target=/real"}
 
-	prog, _ := newProgram(args, fs, &stdout, &stderr, false)
+	prog, _ := newProgram(args, fs, &stdout, &stderr)
 	require.NotNil(t, prog)
 
 	exitCode, err := prog.run(t.Context())
@@ -626,18 +649,6 @@ func Test_Integ_Run_InitNonEmptyMirrorExitCode_Error(t *testing.T) {
 
 	require.Equal(t, exitCodeMirrNotEmpty, exitCode)
 	require.Contains(t, stderr.String(), errMirrorNotEmpty.Error())
-}
-
-// Expectation: The program should not establish with invalid flags.
-func Test_Integ_NewProgram_InvalidFlags_Error(t *testing.T) {
-	t.Parallel()
-
-	fs := setupTestFs()
-	var stdout, stderr bytes.Buffer
-	args := []string{"program", "--invalid-flag"}
-
-	prog, _ := newProgram(args, fs, &stdout, &stderr, true)
-	require.Nil(t, prog)
 }
 
 // Expectation: The program should not establish with a missing config file.
@@ -648,7 +659,7 @@ func Test_Integ_NewProgram_MissingConfigFile_Error(t *testing.T) {
 	var stdout, stderr bytes.Buffer
 	args := []string{"program", "--mode=init", "--config=/config.yaml"}
 
-	prog, err := newProgram(args, fs, &stdout, &stderr, true)
+	prog, err := newProgram(args, fs, &stdout, &stderr)
 	require.ErrorIs(t, err, errArgConfigMissing)
 	require.Nil(t, prog)
 
@@ -671,7 +682,7 @@ func Test_Integ_NewProgram_MalformedConfigFile_Error(t *testing.T) {
 	err := createFiles(fs, files)
 	require.NoError(t, err)
 
-	prog, err := newProgram(args, fs, &stdout, &stderr, true)
+	prog, err := newProgram(args, fs, &stdout, &stderr)
 	require.ErrorIs(t, err, errArgConfigMalformed)
 	require.Nil(t, prog)
 
@@ -700,7 +711,7 @@ exclude:
 	err := createFiles(fs, files)
 	require.NoError(t, err)
 
-	prog, err := newProgram(args, fs, &stdout, &stderr, true)
+	prog, err := newProgram(args, fs, &stdout, &stderr)
 	require.ErrorIs(t, err, errArgConfigMalformed)
 	require.Nil(t, prog)
 
@@ -715,7 +726,7 @@ func Test_Integ_NewProgram_InvalidMode_Error(t *testing.T) {
 	var stdout, stderr bytes.Buffer
 	args := []string{"program", "--mode=invalid", "--mirror=/mirror", "--target=/real"}
 
-	prog, err := newProgram(args, fs, &stdout, &stderr, false)
+	prog, err := newProgram(args, fs, &stdout, &stderr)
 	require.ErrorIs(t, err, errArgModeMismatch)
 	require.Nil(t, prog)
 
@@ -730,7 +741,7 @@ func Test_Integ_NewProgram_MissingMode_Error(t *testing.T) {
 	var stdout, stderr bytes.Buffer
 	args := []string{"program", "--mirror=/mirror", "--target=/real"}
 
-	prog, err := newProgram(args, fs, &stdout, &stderr, false)
+	prog, err := newProgram(args, fs, &stdout, &stderr)
 	require.ErrorIs(t, err, errArgModeMismatch)
 	require.Nil(t, prog)
 
@@ -745,7 +756,7 @@ func Test_Integ_NewProgram_MissingMirror_Error(t *testing.T) {
 	var stdout, stderr bytes.Buffer
 	args := []string{"program", "--mode=init", "--target=/real"}
 
-	prog, err := newProgram(args, fs, &stdout, &stderr, false)
+	prog, err := newProgram(args, fs, &stdout, &stderr)
 	require.ErrorIs(t, err, errArgMissingMirrorTarget)
 	require.Nil(t, prog)
 
@@ -760,7 +771,7 @@ func Test_Integ_NewProgram_MissingTarget_Error(t *testing.T) {
 	var stdout, stderr bytes.Buffer
 	args := []string{"program", "--mode=init", "--mirror=/mirror"}
 
-	prog, err := newProgram(args, fs, &stdout, &stderr, false)
+	prog, err := newProgram(args, fs, &stdout, &stderr)
 	require.ErrorIs(t, err, errArgMissingMirrorTarget)
 	require.Nil(t, prog)
 
@@ -775,7 +786,7 @@ func Test_Integ_NewProgram_SameMirrorAndTarget_Error(t *testing.T) {
 	var stdout, stderr bytes.Buffer
 	args := []string{"program", "--mode=init", "--mirror=/same", "--target=/same"}
 
-	prog, err := newProgram(args, fs, &stdout, &stderr, false)
+	prog, err := newProgram(args, fs, &stdout, &stderr)
 	require.ErrorIs(t, err, errArgMirrorTargetSame)
 	require.Nil(t, prog)
 
@@ -790,7 +801,7 @@ func Test_Integ_NewProgram_RelativeMirrorPath_Error(t *testing.T) {
 	var stdout, stderr bytes.Buffer
 	args := []string{"program", "--mode=init", "--mirror=relative/path", "--target=/absolute"}
 
-	prog, err := newProgram(args, fs, &stdout, &stderr, false)
+	prog, err := newProgram(args, fs, &stdout, &stderr)
 	require.ErrorIs(t, err, errArgMirrorTargetNotAbs)
 	require.Nil(t, prog)
 
@@ -805,7 +816,7 @@ func Test_Integ_NewProgram_RelativeTargetPath_Error(t *testing.T) {
 	var stdout, stderr bytes.Buffer
 	args := []string{"program", "--mode=init", "--mirror=/absolute", "--target=relative/path"}
 
-	prog, err := newProgram(args, fs, &stdout, &stderr, false)
+	prog, err := newProgram(args, fs, &stdout, &stderr)
 	require.ErrorIs(t, err, errArgMirrorTargetNotAbs)
 	require.Nil(t, prog)
 
@@ -820,7 +831,7 @@ func Test_Integ_NewProgram_RelativeExcludePath_Error(t *testing.T) {
 	var stdout, stderr bytes.Buffer
 	args := []string{"program", "--mode=init", "--mirror=/mirror", "--target=/real", "--exclude=relative/path"}
 
-	prog, err := newProgram(args, fs, &stdout, &stderr, false)
+	prog, err := newProgram(args, fs, &stdout, &stderr)
 	require.ErrorIs(t, err, errArgExcludePathNotAbs)
 	require.Nil(t, prog)
 
