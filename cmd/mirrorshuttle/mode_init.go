@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/spf13/afero"
 )
@@ -94,7 +95,7 @@ func (prog *program) createMirrorStructure(ctx context.Context) error {
 			prog.log.Warn("path skipped", "path", path, "reason", "is_mirror_root")
 
 			// The mirror root can be contained within the target root, skip it.
-			return filepath.SkipDir
+			return filepath.SkipDir // Do not traverse deeper.
 		}
 
 		if isExcluded(path, prog.opts.Excludes) { // Check if the walked path is excluded.
@@ -135,7 +136,7 @@ func (prog *program) createMirrorStructure(ctx context.Context) error {
 }
 
 func (prog *program) isEmptyStructure(ctx context.Context, path string) (bool, error) {
-	path = filepath.Clean(path)
+	path = filepath.Clean(strings.TrimSpace(path))
 
 	empty := true
 

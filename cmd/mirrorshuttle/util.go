@@ -33,7 +33,7 @@ func (prog *program) walkError(err error) error {
 }
 
 func isExcluded(path string, excludes []string) bool {
-	path = filepath.Clean(path)
+	path = filepath.Clean(strings.TrimSpace(path))
 
 	for _, excl := range excludes {
 		if path == excl {

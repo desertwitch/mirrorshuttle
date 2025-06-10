@@ -9,7 +9,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestMoveFiles_RegularMove_Success(t *testing.T) {
+// Expectation: The function should move files in non-direct mode.
+func Test_Unit_MoveFiles_RegularMove_Success(t *testing.T) {
 	t.Parallel()
 
 	fs := setupTestFs()
@@ -33,7 +34,7 @@ func TestMoveFiles_RegularMove_Success(t *testing.T) {
 		DryRun:     false,
 	}
 
-	prog := setupTestProgram(fs, opts, nil, nil)
+	prog, _, _ := setupTestProgram(fs, opts)
 	err = prog.moveFiles(t.Context())
 	require.NoError(t, err)
 
@@ -55,7 +56,8 @@ func TestMoveFiles_RegularMove_Success(t *testing.T) {
 	require.ErrorIs(t, err, os.ErrNotExist)
 }
 
-func TestMoveFiles_DirectMove_Success(t *testing.T) {
+// Expecation: The function should move files in direct mode.
+func Test_Unit_MoveFiles_DirectMove_Success(t *testing.T) {
 	t.Parallel()
 
 	fs := setupTestFs()
@@ -80,7 +82,7 @@ func TestMoveFiles_DirectMove_Success(t *testing.T) {
 		DryRun:     false,
 	}
 
-	prog := setupTestProgram(fs, opts, nil, nil)
+	prog, _, _ := setupTestProgram(fs, opts)
 	err = prog.moveFiles(t.Context())
 	require.NoError(t, err)
 
@@ -102,7 +104,8 @@ func TestMoveFiles_DirectMove_Success(t *testing.T) {
 	require.ErrorIs(t, err, os.ErrNotExist)
 }
 
-func TestMoveFiles_FileAlreadyExists_Success(t *testing.T) {
+// Expectation: The function should not fail with conflicting existing files, but set the bit.
+func Test_Unit_MoveFiles_FileAlreadyExists_Success(t *testing.T) {
 	t.Parallel()
 
 	fs := setupTestFs()
@@ -119,7 +122,7 @@ func TestMoveFiles_FileAlreadyExists_Success(t *testing.T) {
 		DryRun:     false,
 	}
 
-	prog := setupTestProgram(fs, opts, nil, nil)
+	prog, _, _ := setupTestProgram(fs, opts)
 	err = prog.moveFiles(t.Context())
 	require.NoError(t, err)
 
@@ -136,7 +139,8 @@ func TestMoveFiles_FileAlreadyExists_Success(t *testing.T) {
 	require.True(t, prog.hasUnmovedFiles)
 }
 
-func TestMoveFiles_WithExcludes_Success(t *testing.T) {
+// Expectation: The function should not move or delete excluded files.
+func Test_Unit_MoveFiles_WithSrcFileExcludes_Success(t *testing.T) {
 	t.Parallel()
 
 	fs := setupTestFs()
@@ -160,7 +164,7 @@ func TestMoveFiles_WithExcludes_Success(t *testing.T) {
 		Excludes:   excludeArg{"/mirror/exclude.txt"},
 	}
 
-	prog := setupTestProgram(fs, opts, nil, nil)
+	prog, _, _ := setupTestProgram(fs, opts)
 	err = prog.moveFiles(t.Context())
 	require.NoError(t, err)
 
@@ -177,7 +181,8 @@ func TestMoveFiles_WithExcludes_Success(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func TestMoveFiles_WithDirExcludes_Success(t *testing.T) {
+// Expectation: The function should not move or delete exclude directories.
+func Test_Unit_MoveFiles_WithSrcDirExcludes_Success(t *testing.T) {
 	t.Parallel()
 
 	fs := setupTestFs()
@@ -201,7 +206,7 @@ func TestMoveFiles_WithDirExcludes_Success(t *testing.T) {
 		Excludes:   excludeArg{"/mirror/exclude"},
 	}
 
-	prog := setupTestProgram(fs, opts, nil, nil)
+	prog, _, _ := setupTestProgram(fs, opts)
 	err = prog.moveFiles(t.Context())
 	require.NoError(t, err)
 
@@ -222,7 +227,96 @@ func TestMoveFiles_WithDirExcludes_Success(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func TestMoveFiles_DryRun_Success(t *testing.T) {
+// Expectation: The function should not move or delete excluded files.
+func Test_Unit_MoveFiles_WithDstFileExcludes_Success(t *testing.T) {
+	t.Parallel()
+
+	fs := setupTestFs()
+	files := map[string]string{
+		"/mirror/include.txt": "content",
+		"/mirror/exclude.txt": "content",
+	}
+	err := createFiles(fs, files)
+	require.NoError(t, err)
+
+	paths := []string{
+		"/real",
+	}
+	err = createDirStructure(fs, paths)
+	require.NoError(t, err)
+
+	opts := &programOptions{
+		MirrorRoot: "/mirror",
+		RealRoot:   "/real",
+		DryRun:     false,
+		Excludes:   excludeArg{"/real/exclude.txt"},
+	}
+
+	prog, _, _ := setupTestProgram(fs, opts)
+	err = prog.moveFiles(t.Context())
+	require.NoError(t, err)
+
+	// Verify included file is moved.
+	_, err = fs.Stat("/real/include.txt")
+	require.NoError(t, err)
+
+	// Verify excluded file is not moved.
+	_, err = fs.Stat("/real/exclude.txt")
+	require.ErrorIs(t, err, os.ErrNotExist)
+
+	// Verify excluded file still exists in mirror.
+	_, err = fs.Stat("/mirror/exclude.txt")
+	require.NoError(t, err)
+}
+
+// Expectation: The function should not move or delete exclude directories.
+func Test_Unit_MoveFiles_WithDstDirExcludes_Success(t *testing.T) {
+	t.Parallel()
+
+	fs := setupTestFs()
+	files := map[string]string{
+		"/mirror/include.txt":         "content",
+		"/mirror/exclude/exclude.txt": "content",
+	}
+	err := createFiles(fs, files)
+	require.NoError(t, err)
+
+	paths := []string{
+		"/real",
+	}
+	err = createDirStructure(fs, paths)
+	require.NoError(t, err)
+
+	opts := &programOptions{
+		MirrorRoot: "/mirror",
+		RealRoot:   "/real",
+		DryRun:     false,
+		Excludes:   excludeArg{"/real/exclude"},
+	}
+
+	prog, _, _ := setupTestProgram(fs, opts)
+	err = prog.moveFiles(t.Context())
+	require.NoError(t, err)
+
+	// Verify included file is moved.
+	_, err = fs.Stat("/real/include.txt")
+	require.NoError(t, err)
+
+	// Verify excluded directory is not created.
+	_, err = fs.Stat("/real/exclude")
+	require.ErrorIs(t, err, os.ErrNotExist)
+
+	// Verify excluded file is not moved.
+	_, err = fs.Stat("/real/exclude/exclude.txt")
+	require.ErrorIs(t, err, os.ErrNotExist)
+
+	// Verify excluded file still exists in mirror.
+	_, err = fs.Stat("/mirror/exclude/exclude.txt")
+	require.NoError(t, err)
+}
+
+// Expectation: The program should respect the dry-mode.
+func Test_Unit_MoveFiles_DryRun_Success(t *testing.T) {
 	t.Parallel()
 
 	fs := setupTestFs()
@@ -240,7 +334,7 @@ func TestMoveFiles_DryRun_Success(t *testing.T) {
 		DryRun:     true,
 	}
 
-	prog := setupTestProgram(fs, opts, nil, nil)
+	prog, _, _ := setupTestProgram(fs, opts)
 	err = prog.moveFiles(t.Context())
 	require.NoError(t, err)
 
@@ -253,7 +347,8 @@ func TestMoveFiles_DryRun_Success(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func TestMoveFiles_CreateTargetDirs_Success(t *testing.T) {
+// Expectation: The function should move deeply-nested directory-only structures.
+func Test_Unit_MoveFiles_CreateTargetNestedDirs_Success(t *testing.T) {
 	t.Parallel()
 
 	fs := setupTestFs()
@@ -276,7 +371,7 @@ func TestMoveFiles_CreateTargetDirs_Success(t *testing.T) {
 		DryRun:     false,
 	}
 
-	prog := setupTestProgram(fs, opts, nil, nil)
+	prog, _, _ := setupTestProgram(fs, opts)
 	err = prog.moveFiles(t.Context())
 	require.NoError(t, err)
 
@@ -290,6 +385,7 @@ func TestMoveFiles_CreateTargetDirs_Success(t *testing.T) {
 	require.Equal(t, "content", string(content))
 }
 
+// Expectation: The function should not complain if nothing is to be moved.
 func TestMoveFiles_EmptyMirror_Success(t *testing.T) {
 	t.Parallel()
 
@@ -303,12 +399,13 @@ func TestMoveFiles_EmptyMirror_Success(t *testing.T) {
 		DryRun:     false,
 	}
 
-	prog := setupTestProgram(fs, opts, nil, nil)
+	prog, _, _ := setupTestProgram(fs, opts)
 	err = prog.moveFiles(t.Context())
 	require.NoError(t, err)
 }
 
-func TestMoveFiles_DirectoryAlreadyExists_Success(t *testing.T) {
+// Expectation: The function should not complain or report if a directory exists.
+func Test_Unit_MoveFiles_DirectoryAlreadyExists_Success(t *testing.T) {
 	t.Parallel()
 
 	fs := setupTestFs()
@@ -324,7 +421,7 @@ func TestMoveFiles_DirectoryAlreadyExists_Success(t *testing.T) {
 		DryRun:     false,
 	}
 
-	prog := setupTestProgram(fs, opts, nil, nil)
+	prog, _, stderr := setupTestProgram(fs, opts)
 	err = prog.moveFiles(t.Context())
 	require.NoError(t, err)
 
@@ -335,9 +432,13 @@ func TestMoveFiles_DirectoryAlreadyExists_Success(t *testing.T) {
 	// Verify directory still exists.
 	_, err = fs.Stat("/real/existingdir")
 	require.NoError(t, err)
+
+	// Existing directories should not be reported as skipped.
+	require.NotContains(t, stderr.String(), "skipped")
 }
 
-func TestMoveFiles_MoveIntoMirror_Success(t *testing.T) {
+// Expectation: The function should not move back into the mirror structure.
+func Test_Unit_MoveFiles_MoveIntoMirror_Success(t *testing.T) {
 	t.Parallel()
 
 	fs := setupTestFs()
@@ -353,16 +454,20 @@ func TestMoveFiles_MoveIntoMirror_Success(t *testing.T) {
 		DryRun:     false,
 	}
 
-	prog := setupTestProgram(fs, opts, nil, nil)
+	prog, _, stderr := setupTestProgram(fs, opts)
 	err = prog.moveFiles(t.Context())
 	require.NoError(t, err)
 
 	// Verify file is not moved into the mirror structure (pointless).
 	_, err = fs.Stat("/mnt/user/mirror/test.txt")
 	require.ErrorIs(t, err, os.ErrNotExist)
+
+	// The path should be reported as skipped.
+	require.Contains(t, stderr.String(), "mirror_into_mirror")
 }
 
-func TestMoveFiles_CtxCancel_Error(t *testing.T) {
+// Expectation: The function should respond to context cancellation.
+func Test_Unit_MoveFiles_CtxCancel_Error(t *testing.T) {
 	t.Parallel()
 
 	fs := setupTestFs()
@@ -389,7 +494,7 @@ func TestMoveFiles_CtxCancel_Error(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
 	cancel()
 
-	prog := setupTestProgram(fs, opts, nil, nil)
+	prog, _, _ := setupTestProgram(fs, opts)
 	err = prog.moveFiles(ctx)
 	require.ErrorIs(t, err, context.Canceled)
 
@@ -408,7 +513,8 @@ func TestMoveFiles_CtxCancel_Error(t *testing.T) {
 	require.ErrorIs(t, err, os.ErrNotExist)
 }
 
-func TestMoveFiles_CreateTargetDirs_BaseGone_Error(t *testing.T) {
+// Expectation: The function should not run if the target directory does not exist.
+func Test_Unit_MoveFiles_TargetNotExist_Error(t *testing.T) {
 	t.Parallel()
 
 	fs := setupTestFs()
@@ -425,7 +531,7 @@ func TestMoveFiles_CreateTargetDirs_BaseGone_Error(t *testing.T) {
 	}
 
 	// Verify the operation fails as base is missing.
-	prog := setupTestProgram(fs, opts, nil, nil)
+	prog, _, _ := setupTestProgram(fs, opts)
 	err = prog.moveFiles(t.Context())
 	require.ErrorIs(t, err, errTargetNotExist)
 
@@ -434,7 +540,8 @@ func TestMoveFiles_CreateTargetDirs_BaseGone_Error(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func TestMoveFiles_MirrorNotExist_Error(t *testing.T) {
+// Expectation: The function should not run if the mirror directory does not exist.
+func Test_Unit_MoveFiles_MirrorNotExist_Error(t *testing.T) {
 	t.Parallel()
 
 	fs := setupTestFs()
@@ -445,12 +552,13 @@ func TestMoveFiles_MirrorNotExist_Error(t *testing.T) {
 		DryRun:     false,
 	}
 
-	prog := setupTestProgram(fs, opts, nil, nil)
+	prog, _, _ := setupTestProgram(fs, opts)
 	err := prog.moveFiles(t.Context())
 	require.ErrorIs(t, err, errMirrorNotExist)
 }
 
-func TestCopyAndRemove_Success(t *testing.T) {
+// Expectation: The function should copy and remove the respective file.
+func Test_Unit_CopyAndRemove_Success(t *testing.T) {
 	t.Parallel()
 
 	fs := setupTestFs()
@@ -460,7 +568,7 @@ func TestCopyAndRemove_Success(t *testing.T) {
 	err := createFiles(fs, files)
 	require.NoError(t, err)
 
-	prog := setupTestProgram(fs, nil, nil, nil)
+	prog, _, _ := setupTestProgram(fs, nil)
 	err = prog.copyAndRemove("/src/file.txt", "/dst/file.txt")
 	require.NoError(t, err)
 
@@ -474,7 +582,8 @@ func TestCopyAndRemove_Success(t *testing.T) {
 	require.Equal(t, "test content", string(content))
 }
 
-func TestCopyAndRemove_Verify_Success(t *testing.T) {
+// Expectation: The function should copy, remove and verify the respective file.
+func Test_Unit_CopyAndRemove_Verify_Success(t *testing.T) {
 	t.Parallel()
 
 	fs := setupTestFs()
@@ -484,7 +593,7 @@ func TestCopyAndRemove_Verify_Success(t *testing.T) {
 	err := createFiles(fs, files)
 	require.NoError(t, err)
 
-	prog := setupTestProgram(fs, nil, nil, nil)
+	prog, _, _ := setupTestProgram(fs, nil)
 	prog.opts.Verify = true
 
 	err = prog.copyAndRemove("/src/file.txt", "/dst/file.txt")
@@ -503,7 +612,8 @@ func TestCopyAndRemove_Verify_Success(t *testing.T) {
 	require.True(t, prog.opts.Verify)
 }
 
-func TestCopyAndRemove_DstTmpFileExists_Success(t *testing.T) {
+// Expectation: The function should overwrite an existing temporary file.
+func Test_Unit_CopyAndRemove_DstTmpFileExists_Success(t *testing.T) {
 	t.Parallel()
 
 	fs := setupTestFs()
@@ -513,7 +623,7 @@ func TestCopyAndRemove_DstTmpFileExists_Success(t *testing.T) {
 	}
 	require.NoError(t, createFiles(fs, files))
 
-	prog := setupTestProgram(fs, nil, nil, nil)
+	prog, _, _ := setupTestProgram(fs, nil)
 
 	err := prog.copyAndRemove("/src/file.txt", "/dst/file.txt")
 	require.NoError(t, err)
@@ -530,12 +640,13 @@ func TestCopyAndRemove_DstTmpFileExists_Success(t *testing.T) {
 	require.Equal(t, "hello", string(content))
 }
 
-func TestCopyAndRemove_SourceNotFound_Error(t *testing.T) {
+// Expectation: The function should complain if the source file does not exist.
+func Test_Unit_CopyAndRemove_SourceNotFound_Error(t *testing.T) {
 	t.Parallel()
 
 	fs := setupTestFs()
 
-	prog := setupTestProgram(fs, nil, nil, nil)
+	prog, _, _ := setupTestProgram(fs, nil)
 	err := prog.copyAndRemove("/nonexistent/file.txt", "/dst/file.txt")
 	require.ErrorIs(t, err, os.ErrNotExist)
 }

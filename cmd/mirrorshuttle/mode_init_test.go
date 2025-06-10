@@ -8,7 +8,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestCreateMirrorStructure_NestedMirror_Success(t *testing.T) {
+// Expectation: The function should exclude the mirror root itself.
+func Test_Unit_CreateMirrorStructure_NestedMirror_Success(t *testing.T) {
 	t.Parallel()
 
 	fs := setupTestFs()
@@ -25,13 +26,13 @@ func TestCreateMirrorStructure_NestedMirror_Success(t *testing.T) {
 		DryRun:     false,
 	}
 
-	prog := setupTestProgram(fs, opts, nil, nil)
+	prog, _, _ := setupTestProgram(fs, opts)
 	err = prog.createMirrorStructure(t.Context())
 	require.NoError(t, err)
 
-	// Verify mirror structure is created.
 	_, err = fs.Stat("/real/mirror/dir1")
 	require.NoError(t, err)
+
 	_, err = fs.Stat("/real/mirror/dir2/subdir")
 	require.NoError(t, err)
 
@@ -40,7 +41,8 @@ func TestCreateMirrorStructure_NestedMirror_Success(t *testing.T) {
 	require.ErrorIs(t, err, os.ErrNotExist)
 }
 
-func TestCreateMirrorStructure_WithFiles_Success(t *testing.T) {
+// Expecation: The function should only mirror directories of the target root.
+func Test_Unit_CreateMirrorStructure_WithFiles_Success(t *testing.T) {
 	t.Parallel()
 
 	fs := setupTestFs()
@@ -64,18 +66,19 @@ func TestCreateMirrorStructure_WithFiles_Success(t *testing.T) {
 		DryRun:     false,
 	}
 
-	prog := setupTestProgram(fs, opts, nil, nil)
+	prog, _, _ := setupTestProgram(fs, opts)
 	err = prog.createMirrorStructure(t.Context())
 	require.NoError(t, err)
 
-	// Verify mirror structure is created.
 	_, err = fs.Stat("/mirror")
 	require.NoError(t, err)
+
 	_, err = fs.Stat("/mirror/dir1")
 	require.NoError(t, err)
 }
 
-func TestCreateMirrorStructure_WithExcludes_Success(t *testing.T) {
+// Expectation: The function should not mirror excluded directories.
+func Test_Unit_CreateMirrorStructure_WithExcludes_Success(t *testing.T) {
 	t.Parallel()
 
 	fs := setupTestFs()
@@ -93,11 +96,10 @@ func TestCreateMirrorStructure_WithExcludes_Success(t *testing.T) {
 		Excludes:   excludeArg{"/real/exclude"},
 	}
 
-	prog := setupTestProgram(fs, opts, nil, nil)
+	prog, _, _ := setupTestProgram(fs, opts)
 	err = prog.createMirrorStructure(t.Context())
 	require.NoError(t, err)
 
-	// Verify included directory is mirrored.
 	_, err = fs.Stat("/mirror/include")
 	require.NoError(t, err)
 
@@ -106,7 +108,8 @@ func TestCreateMirrorStructure_WithExcludes_Success(t *testing.T) {
 	require.ErrorIs(t, err, os.ErrNotExist)
 }
 
-func TestCreateMirrorStructure_DryRun_Success(t *testing.T) {
+// Expectation: The function should respect the dry-mode and not write anything.
+func Test_Unit_CreateMirrorStructure_DryRun_Success(t *testing.T) {
 	t.Parallel()
 
 	fs := setupTestFs()
@@ -119,7 +122,7 @@ func TestCreateMirrorStructure_DryRun_Success(t *testing.T) {
 		DryRun:     true,
 	}
 
-	prog := setupTestProgram(fs, opts, nil, nil)
+	prog, _, _ := setupTestProgram(fs, opts)
 	err = prog.createMirrorStructure(t.Context())
 	require.NoError(t, err)
 
@@ -128,7 +131,8 @@ func TestCreateMirrorStructure_DryRun_Success(t *testing.T) {
 	require.ErrorIs(t, err, os.ErrNotExist)
 }
 
-func TestCreateMirrorStructure_DryRun_MirrorExists_Success(t *testing.T) {
+// Expectation: The function should not delete an existing mirror in dry-mode.
+func Test_Unit_CreateMirrorStructure_DryRun_MirrorExists_Success(t *testing.T) {
 	t.Parallel()
 
 	fs := setupTestFs()
@@ -141,16 +145,20 @@ func TestCreateMirrorStructure_DryRun_MirrorExists_Success(t *testing.T) {
 		DryRun:     true,
 	}
 
-	prog := setupTestProgram(fs, opts, nil, nil)
+	prog, _, _ := setupTestProgram(fs, opts)
 	err = prog.createMirrorStructure(t.Context())
 	require.NoError(t, err)
 
 	// Verify no actual changes were made.
+	_, err = fs.Stat("/mirror")
+	require.NoError(t, err)
+
 	_, err = fs.Stat("/mirror/dir1")
 	require.ErrorIs(t, err, os.ErrNotExist)
 }
 
-func TestCreateMirrorStructure_EmptyMirror_Success(t *testing.T) {
+// Expecation: The function should remove and re-create an empty mirror.
+func Test_Unit_CreateMirrorStructure_EmptyMirror_Success(t *testing.T) {
 	t.Parallel()
 
 	fs := setupTestFs()
@@ -167,18 +175,20 @@ func TestCreateMirrorStructure_EmptyMirror_Success(t *testing.T) {
 		DryRun:     false,
 	}
 
-	prog := setupTestProgram(fs, opts, nil, nil)
+	prog, _, _ := setupTestProgram(fs, opts)
 	err = prog.createMirrorStructure(t.Context())
 	require.NoError(t, err)
 
 	// Verify mirror structure is created.
 	_, err = fs.Stat("/mirror/dir1")
 	require.NoError(t, err)
+
 	_, err = fs.Stat("/mirror/dir2/subdir")
 	require.NoError(t, err)
 }
 
-func TestCreateMirrorStructure_NonExistentMirror_Success(t *testing.T) {
+// Expectation: The function should create a not existing mirror.
+func Test_Unit_CreateMirrorStructure_NonExistentMirror_Success(t *testing.T) {
 	t.Parallel()
 
 	fs := setupTestFs()
@@ -195,20 +205,23 @@ func TestCreateMirrorStructure_NonExistentMirror_Success(t *testing.T) {
 		DryRun:     false,
 	}
 
-	prog := setupTestProgram(fs, opts, nil, nil)
+	prog, _, _ := setupTestProgram(fs, opts)
 	err = prog.createMirrorStructure(t.Context())
 	require.NoError(t, err)
 
 	// Verify mirror structure is created.
 	_, err = fs.Stat("/mirror")
 	require.NoError(t, err)
+
 	_, err = fs.Stat("/mirror/dir1")
 	require.NoError(t, err)
+
 	_, err = fs.Stat("/mirror/dir2/dir3")
 	require.NoError(t, err)
 }
 
-func TestCreateMirrorStructure_CtxCancel_Error(t *testing.T) {
+// Expectation: The function should respond to a context cancellation.
+func Test_Unit_CreateMirrorStructure_CtxCancel_Error(t *testing.T) {
 	t.Parallel()
 
 	fs := setupTestFs()
@@ -228,18 +241,20 @@ func TestCreateMirrorStructure_CtxCancel_Error(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
 	cancel()
 
-	prog := setupTestProgram(fs, opts, nil, nil)
+	prog, _, _ := setupTestProgram(fs, opts)
 	err = prog.createMirrorStructure(ctx)
 	require.ErrorIs(t, err, context.Canceled)
 
 	// Verify mirror structure is not created.
 	_, err = fs.Stat("/mirror/dir1")
 	require.ErrorIs(t, err, os.ErrNotExist)
+
 	_, err = fs.Stat("/mirror/dir2/subdir")
 	require.ErrorIs(t, err, os.ErrNotExist)
 }
 
-func TestCreateMirrorStructure_MirrorWithFiles_Error(t *testing.T) {
+// Expectation: The function should not delete a mirror containing files.
+func Test_Unit_CreateMirrorStructure_MirrorNotEmpty_Error(t *testing.T) {
 	t.Parallel()
 
 	fs := setupTestFs()
@@ -256,12 +271,16 @@ func TestCreateMirrorStructure_MirrorWithFiles_Error(t *testing.T) {
 		DryRun:     false,
 	}
 
-	prog := setupTestProgram(fs, opts, nil, nil)
+	prog, _, _ := setupTestProgram(fs, opts)
 	err = prog.createMirrorStructure(t.Context())
 	require.ErrorIs(t, err, errMirrorNotEmpty)
+
+	_, err = fs.Stat("/mirror/existing.txt")
+	require.NoError(t, err)
 }
 
-func TestCreateMirrorStructure_DryRun_FullMirror_Error(t *testing.T) {
+// Expectation: The function should also return a non-empty error in dry mode.
+func Test_Unit_CreateMirrorStructure_DryRun_MirrorNotEmpty_Error(t *testing.T) {
 	t.Parallel()
 
 	fs := setupTestFs()
@@ -279,16 +298,20 @@ func TestCreateMirrorStructure_DryRun_FullMirror_Error(t *testing.T) {
 		DryRun:     true,
 	}
 
-	prog := setupTestProgram(fs, opts, nil, nil)
+	prog, _, _ := setupTestProgram(fs, opts)
 	err = prog.createMirrorStructure(t.Context())
 	require.ErrorIs(t, err, errMirrorNotEmpty)
 
 	// Verify no actual changes were made.
 	_, err = fs.Stat("/mirror/dir1")
 	require.ErrorIs(t, err, os.ErrNotExist)
+
+	_, err = fs.Stat("/mirror/file.txt")
+	require.NoError(t, err)
 }
 
-func TestCreateMirrorStructure_RealRootNotExist_Error(t *testing.T) {
+// Expecation: The function should not execute with a missing real root.
+func Test_Unit_CreateMirrorStructure_RealRootNotExist_Error(t *testing.T) {
 	t.Parallel()
 
 	fs := setupTestFs()
@@ -299,7 +322,7 @@ func TestCreateMirrorStructure_RealRootNotExist_Error(t *testing.T) {
 		DryRun:     false,
 	}
 
-	prog := setupTestProgram(fs, opts, nil, nil)
+	prog, _, _ := setupTestProgram(fs, opts)
 	err := prog.createMirrorStructure(t.Context())
 	require.ErrorIs(t, err, errTargetNotExist)
 
@@ -308,7 +331,8 @@ func TestCreateMirrorStructure_RealRootNotExist_Error(t *testing.T) {
 	require.ErrorIs(t, err, os.ErrNotExist)
 }
 
-func TestCreateMirrorStructure_MirrorParentNotExist_Error(t *testing.T) {
+// Expectation: The function should not run if the mirror's parent does not exist.
+func Test_Unit_CreateMirrorStructure_MirrorParentNotExist_Error(t *testing.T) {
 	t.Parallel()
 
 	fs := setupTestFs()
@@ -326,7 +350,7 @@ func TestCreateMirrorStructure_MirrorParentNotExist_Error(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	prog := setupTestProgram(fs, opts, nil, nil)
+	prog, _, _ := setupTestProgram(fs, opts)
 	err = prog.createMirrorStructure(t.Context())
 	require.ErrorIs(t, err, errMirrorParentNotExist)
 
@@ -335,7 +359,8 @@ func TestCreateMirrorStructure_MirrorParentNotExist_Error(t *testing.T) {
 	require.ErrorIs(t, err, os.ErrNotExist)
 }
 
-func TestCreateMirrorStructure_MirrorParentNotDir_Error(t *testing.T) {
+// Expectation: The function should not run if the mirror's parent is a file.
+func Test_Unit_CreateMirrorStructure_MirrorParentNotDir_Error(t *testing.T) {
 	t.Parallel()
 
 	fs := setupTestFs()
@@ -354,7 +379,7 @@ func TestCreateMirrorStructure_MirrorParentNotDir_Error(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	prog := setupTestProgram(fs, opts, nil, nil)
+	prog, _, _ := setupTestProgram(fs, opts)
 	err = prog.createMirrorStructure(t.Context())
 	require.ErrorIs(t, err, errMirrorParentNotDir)
 
@@ -363,7 +388,8 @@ func TestCreateMirrorStructure_MirrorParentNotDir_Error(t *testing.T) {
 	require.ErrorIs(t, err, os.ErrNotExist)
 }
 
-func TestIsEmptyStructure_Success(t *testing.T) {
+// Expectation: The function should report a known empty structure as empty.
+func Test_Unit_IsEmptyStructure_Success(t *testing.T) {
 	t.Parallel()
 
 	fs := setupTestFs()
@@ -374,13 +400,15 @@ func TestIsEmptyStructure_Success(t *testing.T) {
 	err := createDirStructure(fs, paths)
 	require.NoError(t, err)
 
-	prog := setupTestProgram(fs, nil, nil, nil)
+	prog, _, _ := setupTestProgram(fs, nil)
 	empty, err := prog.isEmptyStructure(t.Context(), "/empty")
+
 	require.NoError(t, err)
 	require.True(t, empty)
 }
 
-func TestIsEmptyStructure_Error(t *testing.T) {
+// Expectation: The function should report a known not-empty structure as not-empty.
+func Test_Unit_IsEmptyStructure_NotEmpty_Success(t *testing.T) {
 	t.Parallel()
 
 	fs := setupTestFs()
@@ -391,13 +419,15 @@ func TestIsEmptyStructure_Error(t *testing.T) {
 	err := createFiles(fs, files)
 	require.NoError(t, err)
 
-	prog := setupTestProgram(fs, nil, nil, nil)
+	prog, _, _ := setupTestProgram(fs, nil)
 	empty, err := prog.isEmptyStructure(t.Context(), "/nonempty")
+
 	require.NoError(t, err)
 	require.False(t, empty)
 }
 
-func TestIsEmptyStructure_CtxCancel_Error(t *testing.T) {
+// Expectation: The function should respond to a context cancellation.
+func Test_Unit_IsEmptyStructure_CtxCancel_Error(t *testing.T) {
 	t.Parallel()
 
 	fs := setupTestFs()
@@ -411,19 +441,22 @@ func TestIsEmptyStructure_CtxCancel_Error(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
 	cancel()
 
-	prog := setupTestProgram(fs, nil, nil, nil)
+	prog, _, _ := setupTestProgram(fs, nil)
 	empty, err := prog.isEmptyStructure(ctx, "/empty")
+
 	require.ErrorIs(t, err, context.Canceled)
 	require.False(t, empty)
 }
 
-func TestIsEmptyStructure_NonExistentPath_Error(t *testing.T) {
+// Expectation: The function should not run with a non-existing path.
+func Test_Unit_IsEmptyStructure_NonExistentPath_Error(t *testing.T) {
 	t.Parallel()
 
 	fs := setupTestFs()
 
-	prog := setupTestProgram(fs, nil, nil, nil)
+	prog, _, _ := setupTestProgram(fs, nil)
 	empty, err := prog.isEmptyStructure(t.Context(), "/nonexistent")
+
 	require.ErrorIs(t, err, os.ErrNotExist)
 	require.False(t, empty)
 }
