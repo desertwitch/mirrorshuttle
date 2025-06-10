@@ -34,14 +34,14 @@ func parseLogLevel(levelStr string) (slog.Level, error) {
 	case "error":
 		return slog.LevelError, nil
 	default:
-		return slog.LevelInfo, errArgInvalidLogLevel
+		return defaultLogLevel, errArgInvalidLogLevel
 	}
 }
 
 func (prog *program) walkError(err error) error {
 	if prog.opts.SkipFailed {
 		prog.hasPartialFailures = true
-		prog.log.Error("path skipped", "op", prog.opts.Mode, "error", err, "reason", "error_occurred")
+		prog.log.Error("path skipped", "op", prog.opts.Mode, "error", err, "error_type", "runtime", "reason", "error_occurred")
 
 		return nil
 	}

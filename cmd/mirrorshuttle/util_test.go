@@ -124,10 +124,10 @@ func Test_Unit_ParseLogLevel_Table(t *testing.T) {
 		{" info ", slog.LevelInfo, false},
 		{"warn", slog.LevelWarn, false},
 		{"warning", slog.LevelWarn, false},
-		{"", slog.LevelInfo, true},
-		{"verbose", slog.LevelInfo, true},
-		{"none", slog.LevelInfo, true},
-		{"123", slog.LevelInfo, true},
+		{"", defaultLogLevel, true},
+		{"verbose", defaultLogLevel, true},
+		{"none", defaultLogLevel, true},
+		{"123", defaultLogLevel, true},
 		{"error", slog.LevelError, false},
 	}
 
@@ -139,6 +139,7 @@ func Test_Unit_ParseLogLevel_Table(t *testing.T) {
 
 			if tc.expectError {
 				require.Error(t, err)
+				require.Equal(t, tc.expected, level)
 			} else {
 				require.NoError(t, err)
 				require.Equal(t, tc.expected, level)

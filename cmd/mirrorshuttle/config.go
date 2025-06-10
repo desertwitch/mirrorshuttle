@@ -133,6 +133,8 @@ func (prog *program) validateOpts() error {
 		if _, err := parseLogLevel(prog.opts.LogLevel); err != nil {
 			return fmt.Errorf("%w: %q", err, prog.opts.LogLevel)
 		}
+	} else {
+		prog.opts.LogLevel = strings.ToLower(defaultLogLevel.String())
 	}
 
 	return nil
@@ -160,11 +162,9 @@ func (prog *program) printOpts() error {
 
 func (prog *program) logHandler() slog.Handler {
 	var logHandler slog.Handler
-	var logLevel slog.Level = slog.LevelInfo
+	var logLevel slog.Level
 
-	if prog.opts.LogLevel != "" {
-		logLevel, _ = parseLogLevel(prog.opts.LogLevel)
-	}
+	logLevel, _ = parseLogLevel(prog.opts.LogLevel)
 
 	if prog.opts.JSON {
 		logHandler = slog.NewJSONHandler(prog.stderr, &slog.HandlerOptions{
