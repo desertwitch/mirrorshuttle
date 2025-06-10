@@ -64,6 +64,12 @@ func isExcluded(path string, excludes []string) bool {
 	return false
 }
 
+type fileHashes struct {
+	srcHash    string
+	dstHash    string
+	verifyHash string
+}
+
 // contextReader is an implementation of [io.Reader] that is Context-aware for
 // receiving mid-transfer cancellation.
 type contextReader struct {

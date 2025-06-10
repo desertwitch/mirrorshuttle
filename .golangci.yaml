@@ -62,15 +62,6 @@ linters-settings:
         # Default: 5
         min-complexity: 10
 
-    gomoddirectives:
-        # List of allowed `replace` directives.
-        # Default: []
-        replace-allow-list:
-        - github.com/charmbracelet/bubbletea
-
-    paralleltest:
-        ignore-missing-subtests: true
-
 issues:
     include:
         - EXC0002
@@ -85,9 +76,5 @@ issues:
         # Exclude some linters from running on tests files.
         - path: _test\.go
           linters:
-            - dogsled
             - err113
-            - funlen
             - ireturn
-            - revive
-            - tparallel
