@@ -50,7 +50,7 @@ The tool operates in two distinct operational modes, `init` and `move`:
   - `move` transfers files that were added to the mirror back into the original
     target directory, preserving the directory structure. It ensures file
     integrity using BLAKE3 checksums and, when possible, uses atomic renames for
-    efficiency. If a direct rename isn’t possible (e.g., across filesystems), it
+    efficiency. If a direct rename isn't possible (e.g., across filesystems), it
     falls back to a safe copy-and-remove strategy.
 
 #### FEATURES
@@ -162,8 +162,8 @@ system locations; ensure they are executable by running `chmod +x` before use.
     skip-failed: false
     slow-mode: false
     dry-run: false
-	log-level: info
-	json: false
+    log-level: info
+    json: false
 
 Invalid configurations (unknown or malformed fields) are rejected at runtime.
 
