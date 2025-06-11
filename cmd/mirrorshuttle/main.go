@@ -465,18 +465,18 @@ func (prog *program) run(ctx context.Context) (retExitCode int, retError error) 
 	}
 
 	if prog.hasPartialFailures {
-		prog.log.Warn("mode has completed, but with partial failures; exiting...", "op", prog.opts.Mode)
+		prog.log.Warn("mode completed, but with partial failures; exiting...", "op", prog.opts.Mode)
 
 		return exitCodePartialFailure, nil
 	}
 
 	if prog.hasUnmovedFiles {
-		prog.log.Warn("mode has completed, but with unmoved files; exiting...", "op", prog.opts.Mode)
+		prog.log.Warn("mode completed, but with unmoved files; exiting...", "op", prog.opts.Mode)
 
 		return exitCodeUnmovedFiles, nil
 	}
 
-	prog.log.Info("mode has completed; exiting...", "op", prog.opts.Mode)
+	prog.log.Info("mode completed; exiting...", "op", prog.opts.Mode)
 
 	return exitCodeSuccess, nil
 }
