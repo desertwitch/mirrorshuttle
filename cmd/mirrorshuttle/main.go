@@ -313,9 +313,13 @@ type programOptions struct {
 }
 
 func main() {
+	var prog *program
 	var exitCode int
 
 	defer func() {
+		if prog != nil {
+			prog.log.Info("program exited", "code", exitCode)
+		}
 		os.Exit(exitCode)
 	}()
 
