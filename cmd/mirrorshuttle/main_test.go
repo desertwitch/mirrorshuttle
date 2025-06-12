@@ -129,6 +129,97 @@ func Test_Integ_Run_ValidMoveMode_Success(t *testing.T) {
 	require.Equal(t, exitCodeSuccess, exitCode)
 }
 
+// Expectation: The program should handle unicode correctly in init mode.
+func Test_Integ_Run_UnicodeInitMode_Success(t *testing.T) {
+	t.Parallel()
+
+	fs := setupTestFs()
+
+	unicodeDir := "/тестr/📁/测试/ファイル"
+	err := createDirStructure(fs, []string{unicodeDir})
+	require.NoError(t, err)
+
+	var stdout, stderr bytes.Buffer
+	args := []string{"program", "--mode=init", "--mirror=/тестm", "--target=/тестr"}
+
+	prog, err := newProgram(args, fs, &stdout, &stderr)
+	require.NoError(t, err)
+
+	exitCode, err := prog.run(t.Context())
+	require.NoError(t, err)
+	require.Equal(t, exitCodeSuccess, exitCode)
+
+	_, err = fs.Stat("/тестm/📁/测试/ファイル")
+	require.NoError(t, err)
+}
+
+// Expectation: The program should handle unicode correctly in move mode.
+func Test_Integ_Run_UnicodeMoveMode_Success(t *testing.T) {
+	t.Parallel()
+
+	fs := setupTestFs()
+
+	unicodePath := "/тестm/📁/测试/ファイル/file.txt"
+	targetDir := "/тестr/📁/测试/ファイル"
+
+	err := createDirStructure(fs, []string{filepath.Dir(unicodePath), targetDir})
+	require.NoError(t, err)
+
+	err = createFiles(fs, map[string]string{
+		unicodePath: "unicode content",
+	})
+	require.NoError(t, err)
+
+	var stdout, stderr bytes.Buffer
+	args := []string{"program", "--mode=move", "--mirror=/тестm", "--target=/тестr"}
+
+	prog, err := newProgram(args, fs, &stdout, &stderr)
+	require.NoError(t, err)
+
+	exitCode, err := prog.run(t.Context())
+	require.NoError(t, err)
+	require.Equal(t, exitCodeSuccess, exitCode)
+
+	_, err = fs.Stat("/тестr/📁/测试/ファイル/file.txt")
+	require.NoError(t, err)
+}
+
+// Expectation: The program should handle unicode correctly in the config file.
+func Test_Integ_Run_UnicodeConfigFile_Success(t *testing.T) {
+	t.Parallel()
+
+	fs := setupTestFs()
+
+	err := createDirStructure(fs, []string{"/реальний/каталог/тест"})
+	require.NoError(t, err)
+
+	yaml := `
+mirror: /дзеркало
+target: /реальний
+log-level: info
+dry-run: false
+json: true
+`
+
+	err = createFiles(fs, map[string]string{
+		"/конфіг.yaml": yaml,
+	})
+	require.NoError(t, err)
+
+	var stdout, stderr bytes.Buffer
+	args := []string{"program", "--mode=init", "--config=/конфіг.yaml"}
+
+	prog, err := newProgram(args, fs, &stdout, &stderr)
+	require.NoError(t, err)
+
+	exitCode, err := prog.run(t.Context())
+	require.NoError(t, err)
+	require.Equal(t, exitCodeSuccess, exitCode)
+
+	_, err = fs.Stat("/дзеркало/каталог/тест")
+	require.NoError(t, err)
+}
+
 // Expectation: The program should only produce JSON (on standard error) when in JSON mode.
 func Test_Integ_Run_JsonMode_Success(t *testing.T) {
 	t.Parallel()
