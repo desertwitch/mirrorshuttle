@@ -27,8 +27,8 @@ func (prog *program) parseArgs(cliArgs []string) error {
 	prog.flags.SetOutput(prog.stderr)
 	prog.flags.Usage = func() {
 		fmt.Fprintf(prog.stderr, "usage: %q --mode=init|move --mirror=ABSPATH --target=ABSPATH\n", cliArgs[0])
-		fmt.Fprintf(prog.stderr, "\t[--exclude=ABSPATH] [--exclude=ABSPATH] [--direct] [--verify] [--skip-failed] [--slow-mode]\n")
-		fmt.Fprintf(prog.stderr, "\t[--init-depth=NUM] [--dry-run] [--log-level=debug|info|warn|error] [--json]\n\n")
+		fmt.Fprintf(prog.stderr, "\t[--exclude=ABSPATH] [--exclude=ABSPATH] [--direct] [--verify] [--skip-failed]\n")
+		fmt.Fprintf(prog.stderr, "\t[--slow-mode] [--init-depth=NUM] [--dry-run] [--log-level=debug|info|warn|error] [--json]\n\n")
 		prog.flags.PrintDefaults()
 	}
 
