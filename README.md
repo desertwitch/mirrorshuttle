@@ -136,7 +136,7 @@ system locations; ensure they are executable by running `chmod +x` before use.
     --init-depth int
         Optional. A numeric value that decides how deep directories are
         mirrored in --mode=init. A value of 0 mirrors only the contents
-        of the directory root, conversely a value of -1 imposes no limit.
+        of the directory root, conversely negative values impose no limit.
 
         Default: -1
 
