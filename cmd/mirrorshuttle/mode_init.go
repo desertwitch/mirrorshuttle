@@ -111,6 +111,16 @@ func (prog *program) createMirrorStructure(ctx context.Context) error {
 		}
 		mirrorPath := filepath.Join(prog.opts.MirrorRoot, relPath)
 
+		// Respect a user configured maximum mirroring depth for this mode.
+		if prog.opts.InitDepth >= 0 {
+			if dirDepth := dirDepth(relPath); dirDepth > prog.opts.InitDepth {
+				prog.log.Debug("path skipped", "op", prog.opts.Mode, "path", path, "dir_depth", dirDepth, "reason", "exceeds_init_depth")
+
+				// The depth exceeded the user configured limit.
+				return filepath.SkipDir // Do not traverse deeper.
+			}
+		}
+
 		if mirrorPath == prog.opts.MirrorRoot {
 			// The mirror root itself was already created above, skip it.
 			return nil

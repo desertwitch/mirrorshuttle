@@ -18,12 +18,17 @@ func (prog *program) parseArgs(cliArgs []string) error {
 		yamlOpts programOptions
 	)
 
+	// Set any non-zero default values for the configuration.
+	// These get set as program options if not provided elsewhere.
+	yamlOpts.InitDepth = defaultInitDepth
+	yamlOpts.LogLevel = strings.ToLower(defaultLogLevel.String())
+
 	prog.flags = flag.NewFlagSet("mirrorshuttle", flag.ExitOnError)
 	prog.flags.SetOutput(prog.stderr)
 	prog.flags.Usage = func() {
 		fmt.Fprintf(prog.stderr, "usage: %q --mode=init|move --mirror=ABSPATH --target=ABSPATH\n", cliArgs[0])
-		fmt.Fprintf(prog.stderr, "\t[--exclude=ABSPATH] [--exclude=ABSPATH] [--direct] [--verify] [--skip-failed]\n")
-		fmt.Fprintf(prog.stderr, "\t[--slow-mode] [--dry-run] [--log-level=debug|info|warn|error] [--json]\n\n")
+		fmt.Fprintf(prog.stderr, "\t[--exclude=ABSPATH] [--exclude=ABSPATH] [--direct] [--verify] [--skip-failed] [--slow-mode]\n")
+		fmt.Fprintf(prog.stderr, "\t[--init-depth=NUM] [--dry-run] [--log-level=debug|info|warn|error] [--json]\n\n")
 		prog.flags.PrintDefaults()
 	}
 
@@ -36,8 +41,9 @@ func (prog *program) parseArgs(cliArgs []string) error {
 	prog.flags.BoolVar(&prog.opts.Verify, "verify", false, "verify again the hash of a target file after moving it; requires an extra full read of the file")
 	prog.flags.BoolVar(&prog.opts.SkipFailed, "skip-failed", false, "do not exit on non-fatal failures; skip failed element and proceed instead")
 	prog.flags.BoolVar(&prog.opts.SlowMode, "slow-mode", false, "waits 1s after every 50 directory creations in --mode=init; avoids thrashing filesystem")
+	prog.flags.IntVar(&prog.opts.InitDepth, "init-depth", defaultInitDepth, "decides how deep to mirror in --mode=init, 0 is dir root; -1 is unlimited depth")
 	prog.flags.BoolVar(&prog.opts.DryRun, "dry-run", false, "preview only; no changes are written to disk")
-	prog.flags.StringVar(&prog.opts.LogLevel, "log-level", "info", "decides the verbosity of emitted logs; debug, info, warn, error")
+	prog.flags.StringVar(&prog.opts.LogLevel, "log-level", strings.ToLower(defaultLogLevel.String()), "decides the verbosity of emitted logs; debug, info, warn, error")
 	prog.flags.BoolVar(&prog.opts.JSON, "json", false, "output all emitted logs in the JSON format; results can be read from stderr")
 
 	if err := prog.flags.Parse(cliArgs[1:]); err != nil {
@@ -88,6 +94,9 @@ func (prog *program) parseArgs(cliArgs []string) error {
 	if !setFlags["slow-mode"] {
 		prog.opts.SlowMode = yamlOpts.SlowMode
 	}
+	if !setFlags["init-depth"] {
+		prog.opts.InitDepth = yamlOpts.InitDepth
+	}
 	if !setFlags["dry-run"] {
 		prog.opts.DryRun = yamlOpts.DryRun
 	}
@@ -129,12 +138,8 @@ func (prog *program) validateOpts() error {
 		}
 	}
 
-	if prog.opts.LogLevel != "" {
-		if _, err := parseLogLevel(prog.opts.LogLevel); err != nil {
-			return fmt.Errorf("%w: %q", err, prog.opts.LogLevel)
-		}
-	} else {
-		prog.opts.LogLevel = strings.ToLower(defaultLogLevel.String())
+	if _, err := parseLogLevel(prog.opts.LogLevel); err != nil {
+		return fmt.Errorf("%w: %q", err, prog.opts.LogLevel)
 	}
 
 	return nil

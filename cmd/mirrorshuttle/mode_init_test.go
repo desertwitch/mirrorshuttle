@@ -22,6 +22,7 @@ func Test_Unit_CreateMirrorStructure_DeepStructure_Success(t *testing.T) {
 		MirrorRoot: "/mirror",
 		RealRoot:   "/real",
 		DryRun:     false,
+		InitDepth:  -1,
 	}
 
 	prog, _, _ := setupTestProgram(fs, opts)
@@ -47,6 +48,7 @@ func Test_Unit_CreateMirrorStructure_DeepStructureSlow_Success(t *testing.T) {
 		RealRoot:   "/real",
 		DryRun:     false,
 		SlowMode:   true,
+		InitDepth:  -1,
 	}
 
 	prog, _, _ := setupTestProgram(fs, opts)
@@ -75,6 +77,7 @@ func Test_Unit_CreateMirrorStructure_NestedMirror_Success(t *testing.T) {
 		MirrorRoot: "/real/mirror",
 		RealRoot:   "/real",
 		DryRun:     false,
+		InitDepth:  -1,
 	}
 
 	prog, _, _ := setupTestProgram(fs, opts)
@@ -159,6 +162,117 @@ func Test_Unit_CreateMirrorStructure_WithExcludes_Success(t *testing.T) {
 	require.ErrorIs(t, err, os.ErrNotExist)
 }
 
+// Expectation: The function should mirror the full structure.
+func Test_Unit_CreateMirrorStructure_WithInitDepth_Unlimited_Success(t *testing.T) {
+	t.Parallel()
+
+	fs := setupTestFs()
+	err := createDirStructure(fs, []string{
+		"/real/one",
+		"/real/one/two",
+		"/real/one/two/three",
+		"/real/one/two/three/four",
+	})
+	require.NoError(t, err)
+
+	opts := &programOptions{
+		MirrorRoot: "/mirror",
+		RealRoot:   "/real",
+		InitDepth:  -1,
+		DryRun:     false,
+	}
+
+	prog, _, _ := setupTestProgram(fs, opts)
+	err = prog.createMirrorStructure(t.Context())
+	require.NoError(t, err)
+
+	_, err = fs.Stat("/mirror/one")
+	require.NoError(t, err)
+
+	_, err = fs.Stat("/mirror/one/two")
+	require.NoError(t, err)
+
+	_, err = fs.Stat("/mirror/one/two/three")
+	require.NoError(t, err)
+
+	_, err = fs.Stat("/mirror/one/two/three/four")
+	require.NoError(t, err)
+}
+
+// Expectation: The function should not mirror directories deeper than allowed.
+func Test_Unit_CreateMirrorStructure_WithInitDepth_Zero_Success(t *testing.T) {
+	t.Parallel()
+
+	fs := setupTestFs()
+	err := createDirStructure(fs, []string{
+		"/real/lv1",             // depth 0
+		"/real/lv1/lv2",         // depth 1
+		"/real/lv1/lv2/lv3",     // depth 2
+		"/real/lv1/lv2/lv3/lv4", // depth 3
+	})
+	require.NoError(t, err)
+
+	opts := &programOptions{
+		MirrorRoot: "/mirror",
+		RealRoot:   "/real",
+		InitDepth:  0,
+		DryRun:     false,
+	}
+
+	prog, _, _ := setupTestProgram(fs, opts)
+	err = prog.createMirrorStructure(t.Context())
+	require.NoError(t, err)
+
+	_, err = fs.Stat("/mirror/lv1")
+	require.NoError(t, err)
+
+	_, err = fs.Stat("/mirror/lv1/lv2")
+	require.ErrorIs(t, err, os.ErrNotExist)
+
+	_, err = fs.Stat("/mirror/lv1/lv2/lv3")
+	require.ErrorIs(t, err, os.ErrNotExist)
+
+	_, err = fs.Stat("/mirror/lv1/lv2/lv3/lv4")
+	require.ErrorIs(t, err, os.ErrNotExist)
+}
+
+// Expectation: The function should not mirror directories deeper than allowed.
+func Test_Unit_CreateMirrorStructure_WithInitDepth_NonZero_Success(t *testing.T) {
+	t.Parallel()
+
+	fs := setupTestFs()
+	err := createDirStructure(fs, []string{
+		"/real/lv1",             // depth 0
+		"/real/lv1/lv2",         // depth 1
+		"/real/lv1/lv2/lv3",     // depth 2
+		"/real/lv1/lv2/lv3/lv4", // depth 3
+	})
+	require.NoError(t, err)
+
+	opts := &programOptions{
+		MirrorRoot: "/mirror",
+		RealRoot:   "/real",
+		InitDepth:  1,
+		DryRun:     false,
+	}
+
+	prog, _, _ := setupTestProgram(fs, opts)
+	err = prog.createMirrorStructure(t.Context())
+	require.NoError(t, err)
+
+	_, err = fs.Stat("/mirror/lv1")
+	require.NoError(t, err)
+
+	_, err = fs.Stat("/mirror/lv1/lv2")
+	require.NoError(t, err)
+
+	_, err = fs.Stat("/mirror/lv1/lv2/lv3")
+	require.ErrorIs(t, err, os.ErrNotExist)
+
+	_, err = fs.Stat("/mirror/lv1/lv2/lv3/lv4")
+	require.ErrorIs(t, err, os.ErrNotExist)
+}
+
 // Expectation: The function should respect the dry-run mode and not write anything.
 func Test_Unit_CreateMirrorStructure_DryRun_Success(t *testing.T) {
 	t.Parallel()
@@ -224,6 +338,7 @@ func Test_Unit_CreateMirrorStructure_EmptyMirror_Success(t *testing.T) {
 		MirrorRoot: "/mirror",
 		RealRoot:   "/real",
 		DryRun:     false,
+		InitDepth:  -1,
 	}
 
 	prog, _, _ := setupTestProgram(fs, opts)
@@ -254,6 +369,7 @@ func Test_Unit_CreateMirrorStructure_NonExistentMirror_Success(t *testing.T) {
 		MirrorRoot: "/mirror",
 		RealRoot:   "/real",
 		DryRun:     false,
+		InitDepth:  -1,
 	}
 
 	prog, _, _ := setupTestProgram(fs, opts)

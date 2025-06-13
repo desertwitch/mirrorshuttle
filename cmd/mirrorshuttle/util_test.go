@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"log/slog"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -144,6 +145,74 @@ func Test_Unit_ParseLogLevel_Table(t *testing.T) {
 				require.NoError(t, err)
 				require.Equal(t, tc.expected, level)
 			}
+		})
+	}
+}
+
+// Expectation: The function should calculate the depth level according to the table's expectations.
+func Test_Unit_DirDepth_Table(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		relPath  string
+		expected int
+	}{
+		{
+			name:     "Root (dot)",
+			relPath:  ".",
+			expected: 0,
+		},
+		{
+			name:     "Root-level directory",
+			relPath:  "a",
+			expected: 0,
+		},
+		{
+			name:     "One-level nested directory",
+			relPath:  "a/b",
+			expected: 1,
+		},
+		{
+			name:     "Two-level nested directory",
+			relPath:  "a/b/c",
+			expected: 2,
+		},
+		{
+			name:     "With ./ prefix (./a)",
+			relPath:  "./a",
+			expected: 0,
+		},
+		{
+			name:     "With ./ and nested (./a/b)",
+			relPath:  "./a/b",
+			expected: 1,
+		},
+		{
+			name:     "With trailing slash (a/b/)",
+			relPath:  "a/b/",
+			expected: 1,
+		},
+		{
+			name:     "Multiple slashes (a//b///c)",
+			relPath:  "a//b///c",
+			expected: 2,
+		},
+		{
+			name:     "Empty string becomes dot",
+			relPath:  "",
+			expected: 0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			clean := filepath.Clean(tt.relPath)
+			result := dirDepth(clean)
+
+			require.Equal(t, tt.expected, result, "relPath: %q (cleaned: %q)", tt.relPath, clean)
 		})
 	}
 }

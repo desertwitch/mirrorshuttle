@@ -8,6 +8,41 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// Expectation: The function sets all non-provided arguments to their defaults.
+func Test_Unit_ParseArgs_Unset_Defaults_Success(t *testing.T) {
+	t.Parallel()
+
+	fs := setupTestFs()
+	var stdout, stderr bytes.Buffer
+
+	args := []string{
+		"program",
+		"--mode=init",
+		"--mirror=/mirror",
+		"--target=/real",
+	}
+
+	prog, err := newProgram(args, fs, &stdout, &stderr)
+	require.NoError(t, err)
+	require.NotNil(t, prog)
+
+	err = prog.parseArgs(args)
+	require.NoError(t, err)
+
+	require.Equal(t, "init", prog.opts.Mode)
+	require.Equal(t, "/mirror", prog.opts.MirrorRoot)
+	require.Equal(t, "/real", prog.opts.RealRoot)
+	require.Empty(t, prog.opts.Excludes)
+	require.False(t, prog.opts.Direct)
+	require.False(t, prog.opts.Verify)
+	require.False(t, prog.opts.SkipFailed)
+	require.False(t, prog.opts.DryRun)
+	require.False(t, prog.opts.SlowMode)
+	require.Equal(t, defaultInitDepth, prog.opts.InitDepth)
+	require.False(t, prog.opts.JSON)
+	require.Equal(t, "info", prog.opts.LogLevel)
+}
+
 // Expectation: The function can parse all known arguments to their non-defaults.
 func Test_Unit_ParseArgs_All_Success(t *testing.T) {
 	t.Parallel()
@@ -25,6 +60,7 @@ func Test_Unit_ParseArgs_All_Success(t *testing.T) {
 		"--verify",
 		"--dry-run",
 		"--slow-mode",
+		"--init-depth=5",
 		"--skip-failed",
 		"--json",
 		"--log-level=warn",
@@ -46,6 +82,7 @@ func Test_Unit_ParseArgs_All_Success(t *testing.T) {
 	require.True(t, prog.opts.SkipFailed)
 	require.True(t, prog.opts.DryRun)
 	require.True(t, prog.opts.SlowMode)
+	require.Equal(t, 5, prog.opts.InitDepth)
 	require.True(t, prog.opts.JSON)
 	require.Equal(t, "warn", prog.opts.LogLevel)
 }
@@ -64,6 +101,7 @@ direct: true
 verify: true
 dry-run: true
 slow-mode: true
+init-depth: 5
 skip-failed: true
 log-level: warn
 json: true
@@ -90,6 +128,7 @@ json: true
 	require.True(t, prog.opts.SkipFailed)
 	require.True(t, prog.opts.DryRun)
 	require.True(t, prog.opts.SlowMode)
+	require.Equal(t, 5, prog.opts.InitDepth)
 	require.True(t, prog.opts.JSON)
 	require.Equal(t, "warn", prog.opts.LogLevel)
 }
@@ -108,6 +147,7 @@ direct: false
 verify: false
 dry-run: false
 slow-mode: false
+init-depth: 3
 skip-failed: false
 json: false
 log-level: invalid
@@ -127,6 +167,7 @@ log-level: invalid
 		"--direct",
 		"--verify",
 		"--slow-mode",
+		"--init-depth=5",
 		"--dry-run",
 		"--skip-failed",
 		"--json",
@@ -149,6 +190,7 @@ log-level: invalid
 	require.True(t, prog.opts.SkipFailed)
 	require.True(t, prog.opts.DryRun)
 	require.True(t, prog.opts.SlowMode)
+	require.Equal(t, 5, prog.opts.InitDepth)
 	require.True(t, prog.opts.JSON)
 	require.Equal(t, "warn", prog.opts.LogLevel)
 }

@@ -64,6 +64,10 @@ func isExcluded(path string, excludes []string) bool {
 	return false
 }
 
+func dirDepth(relPath string) int {
+	return strings.Count(filepath.Clean(relPath), string(filepath.Separator))
+}
+
 type fileHashes struct {
 	srcHash    string
 	dstHash    string

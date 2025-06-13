@@ -105,6 +105,13 @@ system locations; ensure they are executable by running `chmod +x` before use.
 
 		Default: false
 
+	--init-depth int
+		Optional. A numeric value that decides how deep directories are
+		mirrored in --mode=init. A value of 0 mirrors only the contents
+		of the directory root, conversely a value of -1 imposes no limit.
+
+		Default: -1
+
 	--dry-run
 		Optional. Perform a preview of operations, without filesystem changes.
 		Useful for verifying behavior before execution.
@@ -255,8 +262,9 @@ const (
 	dirCreationBatch   = 50
 	dirCreationTimeout = 1 * time.Second
 
-	dirBasePerm     = 0o777
-	defaultLogLevel = slog.LevelInfo
+	dirBasePerm      = 0o777
+	defaultLogLevel  = slog.LevelInfo
+	defaultInitDepth = -1
 
 	exitTimeout = 10 * time.Second
 )
@@ -307,6 +315,7 @@ type programOptions struct {
 	Verify     bool       `yaml:"verify"`
 	SkipFailed bool       `yaml:"skip-failed"`
 	SlowMode   bool       `yaml:"slow-mode"`
+	InitDepth  int        `yaml:"init-depth"`
 	DryRun     bool       `yaml:"dry-run"`
 	LogLevel   string     `yaml:"log-level"`
 	JSON       bool       `yaml:"json"`
