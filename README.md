@@ -168,6 +168,7 @@ system locations; ensure they are executable by running `chmod +x` before use.
     verify: false
     skip-failed: false
     slow-mode: false
+    init-depth: -1
     dry-run: false
     log-level: info
     json: false
