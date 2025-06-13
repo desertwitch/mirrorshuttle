@@ -444,7 +444,7 @@ func (prog *program) run(ctx context.Context) (retExitCode int, retError error) 
 
 	switch prog.opts.Mode {
 	case "init":
-		prog.log.Info("setting up the mirror structure...", "op", prog.opts.Mode)
+		prog.log.Info("setting up the mirror structure...", "op", prog.opts.Mode, "mirror", prog.opts.MirrorRoot, "target", prog.opts.RealRoot)
 
 		if err := prog.createMirrorStructure(ctx); err != nil {
 			if !errors.Is(err, context.Canceled) {
@@ -459,7 +459,7 @@ func (prog *program) run(ctx context.Context) (retExitCode int, retError error) 
 		}
 
 	case "move":
-		prog.log.Info("moving files from mirror to target structure...", "op", prog.opts.Mode)
+		prog.log.Info("moving files from mirror to target structure...", "op", prog.opts.Mode, "mirror", prog.opts.MirrorRoot, "target", prog.opts.RealRoot)
 
 		if err := prog.moveFiles(ctx); err != nil {
 			if !errors.Is(err, context.Canceled) {
@@ -475,18 +475,18 @@ func (prog *program) run(ctx context.Context) (retExitCode int, retError error) 
 	}
 
 	if prog.hasPartialFailures {
-		prog.log.Warn("mode completed, but with partial failures; exiting...", "op", prog.opts.Mode)
+		prog.log.Warn("mode completed, but with partial failures; exiting...", "op", prog.opts.Mode, "mirror", prog.opts.MirrorRoot, "target", prog.opts.RealRoot)
 
 		return exitCodePartialFailure, nil
 	}
 
 	if prog.hasUnmovedFiles {
-		prog.log.Warn("mode completed, but with unmoved files; exiting...", "op", prog.opts.Mode)
+		prog.log.Warn("mode completed, but with unmoved files; exiting...", "op", prog.opts.Mode, "mirror", prog.opts.MirrorRoot, "target", prog.opts.RealRoot)
 
 		return exitCodeUnmovedFiles, nil
 	}
 
-	prog.log.Info("mode completed; exiting...", "op", prog.opts.Mode)
+	prog.log.Info("mode completed; exiting...", "op", prog.opts.Mode, "mirror", prog.opts.MirrorRoot, "target", prog.opts.RealRoot)
 
 	return exitCodeSuccess, nil
 }
