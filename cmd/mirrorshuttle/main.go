@@ -422,23 +422,9 @@ func newProgram(cliArgs []string, fsys afero.Fs, stdout io.Writer, stderr io.Wri
 func (prog *program) run(ctx context.Context) (retExitCode int, retError error) {
 	defer func() {
 		if r := recover(); r != nil {
-			prog.log.Error("panic recovered", "op", prog.opts.Mode, "error", r, "error-type", "fatal")
+			prog.log.Error("internal panic recovered", "op", prog.opts.Mode, "error", r, "error-type", "fatal")
 			debug.PrintStack()
 			retExitCode = exitCodeFailure
-		}
-	}()
-
-	defer func() {
-		if prog.opts.DryRun {
-			return
-		}
-		if syncable, ok := prog.fsys.(interface{ Sync() error }); ok {
-			prog.log.Info("syncing filesystems...", "op", prog.opts.Mode)
-			if err := syncable.Sync(); err == nil {
-				prog.log.Info("filesystems synced", "op", prog.opts.Mode)
-			} else {
-				prog.log.Error("failed syncing filesystems", "op", prog.opts.Mode, "error", err, "error-type", "runtime")
-			}
 		}
 	}()
 
@@ -452,7 +438,14 @@ func (prog *program) run(ctx context.Context) (retExitCode int, retError error) 
 
 		if err := prog.createMirrorStructure(ctx); err != nil {
 			if !errors.Is(err, context.Canceled) {
-				prog.log.Error("failed creating mirror structure", "op", prog.opts.Mode, "error", err, "error-type", "fatal")
+				prog.log.Error(
+					"failed creating mirror structure",
+					"op", prog.opts.Mode,
+					"error", err,
+					"error-type", "fatal",
+					"dirs_created", prog.state.createdDirs,
+					"files_moved", prog.state.movedFiles,
+				)
 			}
 
 			if errors.Is(err, errMirrorNotEmpty) {
@@ -467,7 +460,14 @@ func (prog *program) run(ctx context.Context) (retExitCode int, retError error) 
 
 		if err := prog.moveFiles(ctx); err != nil {
 			if !errors.Is(err, context.Canceled) {
-				prog.log.Error("failed moving to target structure", "op", prog.opts.Mode, "error", err, "error-type", "fatal")
+				prog.log.Error(
+					"failed moving to target structure",
+					"op", prog.opts.Mode,
+					"error", err,
+					"error-type", "fatal",
+					"dirs_created", prog.state.createdDirs,
+					"files_moved", prog.state.movedFiles,
+				)
 			}
 
 			return exitCodeFailure, fmt.Errorf("failed moving to target structure: %w", err)
