@@ -9,14 +9,14 @@ but using their structure to safely organize and move new content from outside.
 The tool operates in two main modes:
 
   - `init`: Creates a mirror of the directory structure from a secure target
-    into a public staging area (sandbox). This mirror is structural only (no files
-    are copied) allowing you to organize where content will go, without
+    into a public staging area (sandbox). This mirror is structural only (no
+    files are copied) allowing you to organize where content will go, without
     modifying the protected destination itself from untrusted clients.
 
   - `move`: Transfers newly added content from the staging mirror into the
     original secure target, preserving the intended directory layout. Files are
     moved safely, using atomic renames when possible or fallback copy-and-remove
-    when necessary, and integrity is end-to-end verified via BLAKE3 checksumming.
+    when necessary. Integrity is end-to-end verified via SHA-256 checksumming.
 
 In short, this design allows untrusted clients to write files into a staging
 area that mimics a secure environment's structure. Files are then promoted into
@@ -28,7 +28,7 @@ clients full write access, helping defend against data tampering or ransomware.
   - Two-mode workflow: `init` mirrors structure, `move` promotes files.
   - Secure by design: No need for any public writes to the secure target.
   - Atomic operations: Rename syscalls, with copy and remove fallback.
-  - Checksum verification: BLAKE3 hashing ensures end-to-end integrity.
+  - Checksum verification: SHA-256 hashing ensures end-to-end integrity.
   - Exclusion rules: Allow to skip specified absolute paths in both modes.
   - Dry-run support: Easily preview planned operations with a `--dry-run`.
   - CLI and YAML config: Combine structured config files with runtime flags.

@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -10,7 +11,6 @@ import (
 	"path/filepath"
 
 	"github.com/spf13/afero"
-	"github.com/zeebo/blake3"
 )
 
 func (prog *program) moveFiles(ctx context.Context) error {
@@ -127,7 +127,7 @@ func (prog *program) moveFiles(ctx context.Context) error {
 				return prog.walkError(fmt.Errorf("failed to move: %q -x-> %q (%w)", path, movePath, err))
 			}
 
-			// Output the BLAKE3 hashes for this operation as well, as parsing programs may care about them.
+			// Output the SHA-256 hashes for this operation as well, as parsing programs may care about them.
 			prog.log.Info(
 				"file moved",
 				"op", prog.opts.Mode,
@@ -189,8 +189,8 @@ func (prog *program) copyAndRemove(ctx context.Context, src string, dst string) 
 		}
 	}()
 
-	srcHasher := blake3.New()
-	dstHasher := blake3.New()
+	srcHasher := sha256.New()
+	dstHasher := sha256.New()
 
 	ctxReader := &contextReader{ctx, io.TeeReader(in, srcHasher)}
 	multiWriter := io.MultiWriter(out, dstHasher)
@@ -225,7 +225,7 @@ func (prog *program) copyAndRemove(ctx context.Context, src string, dst string) 
 	workingFile = dst // We work on the actual destination file now.
 
 	if prog.opts.Verify {
-		verifyHasher := blake3.New()
+		verifyHasher := sha256.New()
 
 		verifier, err := prog.fsys.Open(workingFile)
 		if err != nil {
