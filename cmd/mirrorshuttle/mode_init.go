@@ -13,7 +13,7 @@ import (
 )
 
 func (prog *program) createMirrorStructure(ctx context.Context) error {
-	dirsCreated := 0
+	createdDirsBatch := 0
 
 	// The real root needs to exist, otherwise we have nowhere to mirror from.
 	if _, err := prog.fsys.Stat(prog.opts.RealRoot); errors.Is(err, os.ErrNotExist) {
@@ -63,6 +63,7 @@ func (prog *program) createMirrorStructure(ctx context.Context) error {
 		if err := prog.fsys.Mkdir(prog.opts.MirrorRoot, dirBasePerm); err != nil {
 			return fmt.Errorf("failed to create: %q (%w)", prog.opts.MirrorRoot, err)
 		}
+		prog.state.createdDirs++
 	}
 	prog.log.Info("mirror directory created", "op", prog.opts.Mode, "path", prog.opts.MirrorRoot, "dry-run", prog.opts.DryRun)
 
@@ -131,11 +132,12 @@ func (prog *program) createMirrorStructure(ctx context.Context) error {
 			if err := prog.fsys.Mkdir(mirrorPath, dirBasePerm); err != nil {
 				return prog.walkError(fmt.Errorf("failed to create: %q (%w)", mirrorPath, err))
 			}
-			dirsCreated++
+			createdDirsBatch++
+			prog.state.createdDirs++
 
-			if prog.opts.SlowMode && dirsCreated > dirCreationBatch {
+			if prog.opts.SlowMode && createdDirsBatch > dirCreationBatch {
 				time.Sleep(dirCreationTimeout)
-				dirsCreated = 0 // Reset the counter after timeout has passed.
+				createdDirsBatch = 0 // Reset the counter after timeout has passed.
 			}
 		}
 
@@ -145,12 +147,14 @@ func (prog *program) createMirrorStructure(ctx context.Context) error {
 				"op", prog.opts.Mode,
 				"path", mirrorPath,
 				"slow-mode", prog.opts.SlowMode,
-				"slow-batch", fmt.Sprintf("%d/%d", dirsCreated, dirCreationBatch),
+				"slow-batch", fmt.Sprintf("%d/%d", createdDirsBatch, dirCreationBatch),
 				"dry-run", prog.opts.DryRun,
 			)
-		} else {
-			prog.log.Info("directory created", "op", prog.opts.Mode, "path", mirrorPath, "slow-mode", prog.opts.SlowMode, "dry-run", prog.opts.DryRun)
+
+			return nil
 		}
+
+		prog.log.Info("directory created", "op", prog.opts.Mode, "path", mirrorPath, "slow-mode", prog.opts.SlowMode, "dry-run", prog.opts.DryRun)
 
 		return nil
 	}); err != nil {

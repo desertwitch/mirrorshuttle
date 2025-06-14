@@ -91,7 +91,7 @@ func Test_Unit_WalkError_SkipFailedTrue_Success(t *testing.T) {
 	result := prog.walkError(err)
 
 	require.NoError(t, result)
-	require.True(t, prog.hasPartialFailures)
+	require.True(t, prog.state.hasPartialFailures)
 	require.Contains(t, stderr.String(), "skipped")
 }
 
@@ -108,7 +108,7 @@ func Test_Unit_WalkError_SkipFailedFalse_Error(t *testing.T) {
 	result := prog.walkError(mockErr)
 
 	require.Equal(t, mockErr, result)
-	require.False(t, prog.hasPartialFailures)
+	require.False(t, prog.state.hasPartialFailures)
 	require.NotContains(t, stdout.String(), "skipped")
 }
 

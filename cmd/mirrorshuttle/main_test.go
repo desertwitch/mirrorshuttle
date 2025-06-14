@@ -35,6 +35,7 @@ func setupTestProgram(fs afero.Fs, opts *programOptions) (prog *program, stdout 
 		stdout: stdout,
 		stderr: stderr,
 		opts:   opts,
+		state:  &programState{},
 		log: slog.New(slog.NewTextHandler(stderr, &slog.HandlerOptions{
 			Level: slog.LevelInfo,
 		})),

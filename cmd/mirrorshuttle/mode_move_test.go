@@ -136,7 +136,7 @@ func Test_Unit_MoveFiles_FileAlreadyExists_Success(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "mirror content", string(content))
 
-	require.True(t, prog.hasUnmovedFiles)
+	require.True(t, prog.state.hasUnmovedFiles)
 }
 
 // Expectation: The function should not move or delete excluded files.

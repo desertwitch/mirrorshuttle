@@ -90,6 +90,7 @@ func (prog *program) moveFiles(ctx context.Context) error {
 					if err := prog.fsys.Mkdir(movePath, dirBasePerm); err != nil {
 						return prog.walkError(fmt.Errorf("failed to create: %q (%w)", movePath, err))
 					}
+					prog.state.createdDirs++
 				}
 				prog.log.Info("directory created", "op", prog.opts.Mode, "path", movePath, "dry-run", prog.opts.DryRun)
 			} else if err != nil {
@@ -100,7 +101,7 @@ func (prog *program) moveFiles(ctx context.Context) error {
 		} // Must be a file from here downwards.
 
 		if _, err := prog.fsys.Stat(movePath); err == nil { // Check if the target file exists.
-			prog.hasUnmovedFiles = true
+			prog.state.hasUnmovedFiles = true
 			prog.log.Warn("target already exists", "op", prog.opts.Mode, "src", path, "dst", movePath, "action", "skipped")
 
 			// The target file exists; do not overwrite it, set unmoved files bit and skip it.
@@ -114,6 +115,7 @@ func (prog *program) moveFiles(ctx context.Context) error {
 				// Direct mode; attempt a rename syscall, otherwise copy and remove.
 				if err := prog.fsys.Rename(path, movePath); err == nil {
 					prog.log.Info("file moved", "op", prog.opts.Mode, "mode", "direct", "src", path, "dst", movePath, "dry-run", prog.opts.DryRun)
+					prog.state.movedFiles++
 
 					return nil
 				} // Rename syscall must have failed from here downwards.
@@ -138,9 +140,12 @@ func (prog *program) moveFiles(ctx context.Context) error {
 				"verify", prog.opts.Verify,
 				"dry-run", prog.opts.DryRun,
 			)
-		} else {
-			prog.log.Info("file moved", "op", prog.opts.Mode, "mode", "none", "src", path, "dst", movePath, "dry-run", prog.opts.DryRun)
-		}
+			prog.state.movedFiles++
+
+			return nil
+		} // Must be in dry mode from here downwards.
+
+		prog.log.Info("file moved", "op", prog.opts.Mode, "mode", "", "src", path, "dst", movePath, "dry-run", prog.opts.DryRun)
 
 		return nil
 	}); err != nil {

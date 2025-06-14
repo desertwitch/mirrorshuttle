@@ -296,15 +296,21 @@ type program struct {
 	fsys   afero.Fs
 	stdout io.Writer
 	stderr io.Writer
-	opts   *programOptions
+
+	state *programState
+	opts  *programOptions
 
 	log   *slog.Logger
 	flags *flag.FlagSet
 
+	provokeTestPanic bool
+}
+
+type programState struct {
+	createdDirs        int
+	movedFiles         int
 	hasUnmovedFiles    bool
 	hasPartialFailures bool
-
-	provokeTestPanic bool
 }
 
 type programOptions struct {
@@ -387,6 +393,7 @@ func newProgram(cliArgs []string, fsys afero.Fs, stdout io.Writer, stderr io.Wri
 		stdout: stdout,
 		stderr: stderr,
 		opts:   &programOptions{},
+		state:  &programState{},
 	}
 
 	if err := prog.parseArgs(cliArgs); err != nil {
@@ -474,19 +481,19 @@ func (prog *program) run(ctx context.Context) (retExitCode int, retError error) 
 		panic("testing program panic")
 	}
 
-	if prog.hasPartialFailures {
-		prog.log.Warn("mode completed, but with partial failures; exiting...", "op", prog.opts.Mode, "mirror", prog.opts.MirrorRoot, "target", prog.opts.RealRoot)
+	if prog.state.hasPartialFailures {
+		prog.log.Warn("mode completed, but with partial failures; exiting...", "op", prog.opts.Mode, "dirs_created", prog.state.createdDirs, "files_moved", prog.state.movedFiles)
 
 		return exitCodePartialFailure, nil
 	}
 
-	if prog.hasUnmovedFiles {
-		prog.log.Warn("mode completed, but with unmoved files; exiting...", "op", prog.opts.Mode, "mirror", prog.opts.MirrorRoot, "target", prog.opts.RealRoot)
+	if prog.state.hasUnmovedFiles {
+		prog.log.Warn("mode completed, but with unmoved files; exiting...", "op", prog.opts.Mode, "dirs_created", prog.state.createdDirs, "files_moved", prog.state.movedFiles)
 
 		return exitCodeUnmovedFiles, nil
 	}
 
-	prog.log.Info("mode completed; exiting...", "op", prog.opts.Mode, "mirror", prog.opts.MirrorRoot, "target", prog.opts.RealRoot)
+	prog.log.Info("mode completed; exiting...", "op", prog.opts.Mode, "dirs_created", prog.state.createdDirs, "files_moved", prog.state.movedFiles)
 
 	return exitCodeSuccess, nil
 }
