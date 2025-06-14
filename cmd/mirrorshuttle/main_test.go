@@ -104,6 +104,28 @@ func Test_Integ_Run_ValidInitMode_Success(t *testing.T) {
 	require.Equal(t, exitCodeSuccess, exitCode)
 }
 
+// The program should report the correct statistics in init mode.
+func Test_Integ_Run_ValidInitModeStats_Success(t *testing.T) {
+	t.Parallel()
+
+	fs := setupTestFs()
+	err := createDirStructure(fs, []string{"/real/dir1"})
+	require.NoError(t, err)
+
+	var stdout, stderr bytes.Buffer
+	args := []string{"program", "--mode=init", "--mirror=/mirror", "--target=/real"}
+
+	prog, _ := newProgram(args, fs, &stdout, &stderr)
+	require.NotNil(t, prog)
+
+	exitCode, err := prog.run(t.Context())
+	require.NoError(t, err)
+
+	require.Equal(t, exitCodeSuccess, exitCode)
+	require.Equal(t, 2, prog.state.createdDirs)
+	require.Equal(t, 0, prog.state.movedFiles)
+}
+
 // Expectation: The program should run move mode with only the required CLI arguments.
 func Test_Integ_Run_ValidMoveMode_Success(t *testing.T) {
 	t.Parallel()
@@ -128,6 +150,35 @@ func Test_Integ_Run_ValidMoveMode_Success(t *testing.T) {
 	require.NoError(t, err)
 
 	require.Equal(t, exitCodeSuccess, exitCode)
+}
+
+// The program should report the correct statistics in move mode.
+func Test_Integ_Run_ValidMoveModeStats_Success(t *testing.T) {
+	t.Parallel()
+
+	fs := setupTestFs()
+	err := createDirStructure(fs, []string{"/mirror", "/real"})
+	require.NoError(t, err)
+
+	files := map[string]string{
+		"/mirror/file.txt":       "content",
+		"/mirror/dir1/file2.txt": "content2",
+	}
+	err = createFiles(fs, files)
+	require.NoError(t, err)
+
+	var stdout, stderr bytes.Buffer
+	args := []string{"program", "--mode=move", "--mirror=/mirror", "--target=/real"}
+
+	prog, _ := newProgram(args, fs, &stdout, &stderr)
+	require.NotNil(t, prog)
+
+	exitCode, err := prog.run(t.Context())
+	require.NoError(t, err)
+
+	require.Equal(t, exitCodeSuccess, exitCode)
+	require.Equal(t, 1, prog.state.createdDirs)
+	require.Equal(t, 2, prog.state.movedFiles)
 }
 
 // Expectation: The program should handle unicode correctly in init mode.
@@ -526,6 +577,33 @@ func Test_Integ_Run_SkipFailed_PartialFailureExitCode_Success(t *testing.T) {
 	require.ErrorIs(t, err, os.ErrNotExist)
 
 	require.Contains(t, stderr.String(), "simulated rename failure")
+}
+
+// Expectation: The program should report the correct statistics with partial failures.
+func Test_Integ_Run_SkipFailed_PartialFailureStats_Success(t *testing.T) {
+	t.Parallel()
+
+	base := setupTestFs()
+	fs := flakyFs{Fs: base, failOnPath: "fail.txt"}
+
+	err := createFiles(fs, map[string]string{
+		"/mirror/ok.txt":   "ok",
+		"/mirror/fail.txt": "fail",
+	})
+	require.NoError(t, err)
+
+	err = createDirStructure(fs, []string{"/real"})
+	require.NoError(t, err)
+
+	var stdout, stderr bytes.Buffer
+	args := []string{"program", "--mode=move", "--mirror=/mirror", "--target=/real", "--skip-failed"}
+
+	prog, _ := newProgram(args, fs, &stdout, &stderr)
+	exitCode, err := prog.run(t.Context())
+	require.NoError(t, err)
+
+	require.Equal(t, exitCodePartialFailure, exitCode)
+	require.Equal(t, 1, prog.state.movedFiles)
 }
 
 // Expectation: The program should produce the full failure exit code.
