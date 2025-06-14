@@ -331,7 +331,9 @@ func main() {
 
 	defer func() {
 		if prog != nil {
-			prog.log.Info("program exited", "code", exitCode)
+			prog.log.Info("program exited",
+				"code", exitCode,
+			)
 		}
 		os.Exit(exitCode)
 	}()
@@ -366,7 +368,9 @@ func main() {
 		return
 
 	case <-sigChan:
-		prog.log.Warn("received interrupt signal; shutting down (waiting up to 10s)...", "op", prog.opts.Mode)
+		prog.log.Warn("received interrupt signal; shutting down (waiting up to 10s)...",
+			"op", prog.opts.Mode,
+		)
 		cancel()
 
 		select {
@@ -376,7 +380,10 @@ func main() {
 			return
 
 		case <-time.After(exitTimeout):
-			prog.log.Error("timed out while waiting for program exit; killing...", "op", prog.opts.Mode, "error-type", "fatal")
+			prog.log.Error("timed out while waiting for program exit; killing...",
+				"op", prog.opts.Mode,
+				"error-type", "fatal",
+			)
 			exitCode = exitCodeFailure
 
 			return
@@ -422,24 +429,33 @@ func newProgram(cliArgs []string, fsys afero.Fs, stdout io.Writer, stderr io.Wri
 func (prog *program) run(ctx context.Context) (retExitCode int, retError error) {
 	defer func() {
 		if r := recover(); r != nil {
-			prog.log.Error("internal panic recovered", "op", prog.opts.Mode, "error", r, "error-type", "fatal")
+			prog.log.Error("internal panic recovered",
+				"op", prog.opts.Mode,
+				"error", r,
+				"error-type", "fatal",
+			)
 			debug.PrintStack()
 			retExitCode = exitCodeFailure
 		}
 	}()
 
 	if prog.opts.DryRun {
-		prog.log.Warn("running in dry mode - no changes will be made", "op", prog.opts.Mode)
+		prog.log.Warn("running in dry mode - no changes will be made",
+			"op", prog.opts.Mode,
+		)
 	}
 
 	switch prog.opts.Mode {
 	case "init":
-		prog.log.Info("setting up the mirror structure...", "op", prog.opts.Mode, "mirror", prog.opts.MirrorRoot, "target", prog.opts.RealRoot)
+		prog.log.Info("setting up the mirror structure...",
+			"op", prog.opts.Mode,
+			"mirror", prog.opts.MirrorRoot,
+			"target", prog.opts.RealRoot,
+		)
 
 		if err := prog.createMirrorStructure(ctx); err != nil {
 			if !errors.Is(err, context.Canceled) {
-				prog.log.Error(
-					"failed creating mirror structure",
+				prog.log.Error("failed creating mirror structure",
 					"op", prog.opts.Mode,
 					"error", err,
 					"error-type", "fatal",
@@ -456,12 +472,15 @@ func (prog *program) run(ctx context.Context) (retExitCode int, retError error) 
 		}
 
 	case "move":
-		prog.log.Info("moving files from mirror to target structure...", "op", prog.opts.Mode, "mirror", prog.opts.MirrorRoot, "target", prog.opts.RealRoot)
+		prog.log.Info("moving files from mirror to target structure...",
+			"op", prog.opts.Mode,
+			"mirror", prog.opts.MirrorRoot,
+			"target", prog.opts.RealRoot,
+		)
 
 		if err := prog.moveFiles(ctx); err != nil {
 			if !errors.Is(err, context.Canceled) {
-				prog.log.Error(
-					"failed moving to target structure",
+				prog.log.Error("failed moving to target structure",
 					"op", prog.opts.Mode,
 					"error", err,
 					"error-type", "fatal",
@@ -479,18 +498,30 @@ func (prog *program) run(ctx context.Context) (retExitCode int, retError error) 
 	}
 
 	if prog.state.hasPartialFailures {
-		prog.log.Warn("mode completed, but with partial failures; exiting...", "op", prog.opts.Mode, "dirs_created", prog.state.createdDirs, "files_moved", prog.state.movedFiles)
+		prog.log.Warn("mode completed, but with partial failures; exiting...",
+			"op", prog.opts.Mode,
+			"dirs_created", prog.state.createdDirs,
+			"files_moved", prog.state.movedFiles,
+		)
 
 		return exitCodePartialFailure, nil
 	}
 
 	if prog.state.hasUnmovedFiles {
-		prog.log.Warn("mode completed, but with unmoved files; exiting...", "op", prog.opts.Mode, "dirs_created", prog.state.createdDirs, "files_moved", prog.state.movedFiles)
+		prog.log.Warn("mode completed, but with unmoved files; exiting...",
+			"op", prog.opts.Mode,
+			"dirs_created", prog.state.createdDirs,
+			"files_moved", prog.state.movedFiles,
+		)
 
 		return exitCodeUnmovedFiles, nil
 	}
 
-	prog.log.Info("mode completed; exiting...", "op", prog.opts.Mode, "dirs_created", prog.state.createdDirs, "files_moved", prog.state.movedFiles)
+	prog.log.Info("mode completed; exiting...",
+		"op", prog.opts.Mode,
+		"dirs_created", prog.state.createdDirs,
+		"files_moved", prog.state.movedFiles,
+	)
 
 	return exitCodeSuccess, nil
 }

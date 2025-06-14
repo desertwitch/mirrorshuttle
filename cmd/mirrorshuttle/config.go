@@ -78,7 +78,7 @@ func (prog *program) parseArgs(cliArgs []string) error {
 	}
 	if !setFlags["exclude"] {
 		for _, p := range yamlOpts.Excludes {
-			// Since we established no excludes were given, easier to just append to nil-slice
+			// Since we established no excludes were given, easier to just append to nil-slice.
 			prog.opts.Excludes = append(prog.opts.Excludes, filepath.Clean(strings.TrimSpace(p)))
 		}
 	}

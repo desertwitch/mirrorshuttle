@@ -40,8 +40,14 @@ func parseLogLevel(levelStr string) (slog.Level, error) {
 
 func (prog *program) walkError(err error) error {
 	if prog.opts.SkipFailed {
-		prog.log.Error("path skipped", "op", prog.opts.Mode, "error", err, "error-type", "runtime", "reason", "error_occurred")
 		prog.state.hasPartialFailures = true
+
+		prog.log.Error("path skipped",
+			"op", prog.opts.Mode,
+			"error", err,
+			"error-type", "runtime",
+			"reason", "error_occurred",
+		)
 
 		return nil
 	}
