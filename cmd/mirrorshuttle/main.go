@@ -1,39 +1,40 @@
 /*
-mirrorshuttle provides a command-line interface for replicating the full
-directory structure of a target location into a sandbox or staging area. Content
-can be added to this mirror structure, without exposing the secure target, but
-at the benefit of having its entire directory structure available for organizing.
+mirrorshuttle is a CLI utility for safely staging and promoting filesystem
+content, without exposing secure target directories to network write access. It
+enables workflows similar to Samba's `vfs_worm` module, supporting a two-step
+write-once, read-many architecture. This allows secure locations to be shared
+read-only with untrusted clients, protecting these locations against ransomware,
+but using their structure to safely organize and move new content from outside.
 
-Later, mirrorshuttle moves new content back into the original, secured
-structure, while preserving the directory structure as organized in the staging
-area. This workflow allows content to be prepared in a public writable
-environment, then securely promoted to its protected final destination, without
-ever exposing that destination itself to public write access (and ransomware).
+The tool operates in two main modes:
 
-The tool operates in two distinct operational modes, `init` and `move`:
+  - `init`: Creates a mirror of the directory structure from a secure target
+    into a public staging area (sandbox). This mirror is structural only (no files
+    are copied) allowing you to organize where content will go, without
+    modifying the protected destination itself from untrusted clients.
 
-  - `init` creates a mirror of the target directory's structure inside a sandbox
-    or staging area. It excludes any paths marked with `--exclude` or otherwise
-    specified in a configuration file. This is useful for preparing files in a
-    public or temporary environment while using the layout of the secure
-    destination. The mirror directory can even be a subdirectory of the target
-    directory itself, in which case it will be excluded from the mirror process.
+  - `move`: Transfers newly added content from the staging mirror into the
+    original secure target, preserving the intended directory layout. Files are
+    moved safely, using atomic renames when possible or fallback copy-and-remove
+    when necessary, and integrity is end-to-end verified via BLAKE3 checksumming.
 
-  - `move` transfers files that were added to the mirror back into the original
-    target directory, preserving the directory structure. It ensures file
-    integrity using BLAKE3 checksums and, when possible, uses atomic renames for
-    efficiency. If a direct rename isn't possible (e.g., across filesystems), it
-    falls back to a safe copy-and-remove strategy.
+In short, this design allows untrusted clients to write files into a staging
+area that mimics a secure environment's structure. Files are then promoted into
+the planned protected destinations from within the server - without ever giving
+clients full write access, helping defend against data tampering or ransomware.
 
 # FEATURES
 
-  - Clean CLI and YAML configuration support.
-  - Optional dry-run mode for safe previews.
-  - Atomic file operations when possible.
-  - Safe fallback to copy-and-remove across filesystems.
-  - Checksum validation using BLAKE3 to ensure in-memory/file integrity.
-  - Exclude rules for omitting specific absolute paths from either mode.
-  - Fails early on misconfiguration or unsafe directory states.
+  - Two-mode workflow: `init` mirrors structure, `move` promotes files.
+  - Secure by design: No need for any public writes to the secure target.
+  - Atomic operations: Rename syscalls, with copy and remove fallback.
+  - Checksum verification: BLAKE3 hashing ensures end-to-end integrity.
+  - Exclusion rules: Allow to skip specified absolute paths in both modes.
+  - Dry-run support: Easily preview planned operations with a `--dry-run`.
+  - CLI and YAML config: Combine structured config files with runtime flags.
+  - Failure-safe: Fails early on either misconfiguration or unsafe states.
+  - Lightweight: No root required; simply honors current user's `umask`.
+  - Scriptable: JSON output mode and return codes allow complex scripting.
 
 # INSTALLATION
 
@@ -158,12 +159,12 @@ Invalid configurations (unknown or malformed fields) are rejected at runtime.
 
 # IMPLEMENTATION
 
-An example implementation could be a RAID system that has all user "shares"
+An example implementation could be a NAS system that has all user "shares"
 inside `/mnt/user`, but only `/mnt/user/incoming` writable from the outside
 world (e.g., via Samba). The other directories of `/mnt/user` are read-only to
-the outside world and are themselves readable data archives that do not change.
+the public and are themselves readable data archives that do not change.
 
-The user wants to prepare data within the `/mnt/user/incoming` structure only,
+The user wants to prepare data within the `/mnt/user/incoming` structure,
 but also organize where it will end up in the protected archival structures
 eventually, so they run the following initial command:
 
@@ -184,9 +185,8 @@ hence runs the initialization command (again) after finishing their cleanup:
 
 	mirrorshuttle --mode=init --mirror=/mnt/user/incoming --target=/mnt/user
 
-They could also run this command as part of their cron job, after the respective
-`--mode=move` operation, ensuring that their mirror directory is always up to
-date.
+They could even run this command as part of their cron job, after the
+`--mode=move` operation, ensuring that their mirror is always up to date.
 
 They understand that if directories were removed in the `--target` structure,
 and `--mode=init` was not run again before the next `--mode=move`, any removed
@@ -220,12 +220,9 @@ across environments without requiring privileged access.
 # POSSIBLE USE CASES IN PRODUCTION
 
 mirrorshuttle is well-suited for system automation, secure file transfers, and
-complex filesystem migration tasks. While it can be executed directly from the
-command line interface (CLI), it is often most effective when integrated into
-shell scripts or scheduled with cron jobs.
-
-Always use with caution and ensure you fully understand the behavior of its
-operational modes before deploying in a production environment.
+complex orchestration of filesystem migration tasks. While it can be executed
+directly from the command line interface (CLI), it is often most effective when
+integrated into shell scripts or scheduled with cron jobs.
 
 # SECURITY, CONTRIBUTIONS AND LICENSING
 
