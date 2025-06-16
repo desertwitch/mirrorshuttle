@@ -11,7 +11,7 @@
     <a href="https://goreportcard.com/report/github.com/desertwitch/mirrorshuttle"><img alt="Go Report" src="https://goreportcard.com/badge/github.com/desertwitch/mirrorshuttle"></a>
     <a href="./LICENSE"><img alt="License" src="https://img.shields.io/github/license/desertwitch/mirrorshuttle"></a>
     <br>
-    <a href="https://app.codecov.io/gh/desertwitch/mirrorshuttle"><img alt="Codecov" src="https://codecov.io/gh/desertwitch/mirrorshuttle/graph/badge.svg?token=010RR2BT2K"></a>
+    <a href="https://app.codecov.io/gh/desertwitch/mirrorshuttle"><img alt="Codecov" src="https://codecov.io/github/desertwitch/mirrorshuttle/graph/badge.svg?token=010RR2BT2K"></a>
     <a href="https://github.com/desertwitch/mirrorshuttle/actions/workflows/golangci-lint.yml"><img alt="Lint" src="https://github.com/desertwitch/mirrorshuttle/actions/workflows/golangci-lint.yml/badge.svg"></a>
     <a href="https://github.com/desertwitch/mirrorshuttle/actions/workflows/golang-tests.yml"><img alt="Tests" src="https://github.com/desertwitch/mirrorshuttle/actions/workflows/golang-tests.yml/badge.svg"></a>
     <a href="https://github.com/desertwitch/mirrorshuttle/actions/workflows/golang-build.yml"><img alt="Build" src="https://github.com/desertwitch/mirrorshuttle/actions/workflows/golang-build.yml/badge.svg"></a>
