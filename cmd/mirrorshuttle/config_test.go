@@ -35,7 +35,7 @@ func Test_Unit_ParseArgs_Unset_Defaults_Success(t *testing.T) {
 	require.Empty(t, prog.opts.Excludes)
 	require.False(t, prog.opts.Direct)
 	require.False(t, prog.opts.Verify)
-	require.False(t, prog.opts.SkipEmpty)
+	require.True(t, prog.opts.SkipEmpty)
 	require.False(t, prog.opts.RemoveEmpty)
 	require.False(t, prog.opts.SkipFailed)
 	require.False(t, prog.opts.DryRun)

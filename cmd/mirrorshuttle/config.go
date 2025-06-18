@@ -22,6 +22,7 @@ func (prog *program) parseArgs(cliArgs []string) error {
 	// These get set as program options if not provided elsewhere.
 	yamlOpts.InitDepth = defaultInitDepth
 	yamlOpts.LogLevel = strings.ToLower(defaultLogLevel.String())
+	yamlOpts.SkipEmpty = true
 
 	prog.flags = flag.NewFlagSet("mirrorshuttle", flag.ExitOnError)
 	prog.flags.SetOutput(prog.stderr)
@@ -39,7 +40,7 @@ func (prog *program) parseArgs(cliArgs []string) error {
 	prog.flags.Var(&prog.opts.Excludes, "exclude", "absolute path to exclude; can be repeated multiple times")
 	prog.flags.BoolVar(&prog.opts.Direct, "direct", false, "use atomic rename when possible; fallback to copy and remove if it fails or crosses filesystems")
 	prog.flags.BoolVar(&prog.opts.Verify, "verify", false, "verify again the hash of a target file after moving it; requires an extra full read of the file")
-	prog.flags.BoolVar(&prog.opts.SkipEmpty, "skip-empty", false, "do not --mode=move empty directories; avoids accidental re-creations of (target) deletions")
+	prog.flags.BoolVar(&prog.opts.SkipEmpty, "skip-empty", true, "do not --mode=move empty directories; avoids accidental re-creations of (target) deletions")
 	prog.flags.BoolVar(&prog.opts.RemoveEmpty, "remove-empty", false, "remove empty directories that do not exist on target in --mode=move; --skip-empty needed")
 	prog.flags.BoolVar(&prog.opts.SkipFailed, "skip-failed", false, "do not exit on non-fatal failures; skip failed element and proceed instead")
 	prog.flags.BoolVar(&prog.opts.SlowMode, "slow-mode", false, "waits 1s after every 50 directory creations in --mode=init; avoids thrashing filesystem")

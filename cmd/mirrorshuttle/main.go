@@ -101,7 +101,7 @@ system locations; ensure they are executable by running `chmod +x` before use.
 		Such a case can happen when the target structure has changed and it was
 		forgotten to run `--mode=init` to reflect these changes on the mirror.
 
-		Default: false
+		Default: true
 
 	--remove-empty
 		Optional. Remove empty mirror directories in `--mode=move`; only when
@@ -161,7 +161,7 @@ system locations; ensure they are executable by running `chmod +x` before use.
 	  - /real/path/temp
 	direct: true
 	verify: false
-	skip-empty: false
+	skip-empty: true
 	remove-empty: false
 	skip-failed: false
 	slow-mode: false
