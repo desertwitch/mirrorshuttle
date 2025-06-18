@@ -187,7 +187,7 @@ system locations; ensure they are executable by running `chmod +x` before use.
     exclude:
       - /real/path/skip-this
       - /real/path/temp
-    direct: true
+    direct: false
     verify: false
     skip-empty: true
     remove-empty: false

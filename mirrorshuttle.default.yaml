@@ -21,7 +21,7 @@ exclude:
 # not being wanted. Disable this setting for such use cases.
 #
 # Default: false
-direct: true
+direct: false
 
 # Re-read the target file again after moving and verify against a previously
 # calculated (source file) hash, ensuring target was written to disk without
