@@ -131,6 +131,19 @@ system locations; ensure they are executable by running `chmod +x` before use.
 
         Default: false
 
+    --remove-empty
+        Optional. Remove empty mirror directories in `--mode=move`; only when 
+        used together with `--skip-empty` and no longer existing on the target.
+        While not a replacement for a full `--mode=init`, this setting can help
+        weed out no longer existing directories between any two `--mode=move`s.
+
+        A major downside is that it also removes newly created directories
+        within the mirror, those which do not contain files to be moved yet.
+        Hence, using only `--skip-empty` and doing proper `--mode=init`s is to
+        always be preferred over using this for cleanup purposes in production.
+
+        Default: false
+
     --skip-failed
         Optional. Do not exit on non-fatal failures, skip the failed element
         and proceed instead; returns with a partial failure return code.
@@ -177,6 +190,7 @@ system locations; ensure they are executable by running `chmod +x` before use.
     direct: true
     verify: false
     skip-empty: false
+    remove-empty: false
     skip-failed: false
     slow-mode: false
     init-depth: -1

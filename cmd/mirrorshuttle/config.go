@@ -27,8 +27,8 @@ func (prog *program) parseArgs(cliArgs []string) error {
 	prog.flags.SetOutput(prog.stderr)
 	prog.flags.Usage = func() {
 		fmt.Fprintf(prog.stderr, "usage: %q --mode=init|move --mirror=ABSPATH --target=ABSPATH\n", cliArgs[0])
-		fmt.Fprintf(prog.stderr, "\t[--exclude=ABSPATH] [--exclude=ABSPATH] [--direct] [--verify] [--skip-empty] [--skip-failed]\n")
-		fmt.Fprintf(prog.stderr, "\t[--slow-mode] [--init-depth=NUM] [--dry-run] [--log-level=debug|info|warn|error] [--json]\n\n")
+		fmt.Fprintf(prog.stderr, "\t[--exclude=ABSPATH] [--exclude=ABSPATH] [--direct] [--verify] [--skip-empty] [--remove-empty]\n")
+		fmt.Fprintf(prog.stderr, "\t[--skip-failed] [--slow-mode] [--init-depth=NUM] [--dry-run] [--log-level=debug|info|warn|error] [--json]\n\n")
 		prog.flags.PrintDefaults()
 	}
 
@@ -40,6 +40,7 @@ func (prog *program) parseArgs(cliArgs []string) error {
 	prog.flags.BoolVar(&prog.opts.Direct, "direct", false, "use atomic rename when possible; fallback to copy and remove if it fails or crosses filesystems")
 	prog.flags.BoolVar(&prog.opts.Verify, "verify", false, "verify again the hash of a target file after moving it; requires an extra full read of the file")
 	prog.flags.BoolVar(&prog.opts.SkipEmpty, "skip-empty", false, "do not --mode=move empty directories; avoids accidental re-creations of (target) deletions")
+	prog.flags.BoolVar(&prog.opts.RemoveEmpty, "remove-empty", false, "remove empty directories that do not exist on target in --mode=move; --skip-empty needed")
 	prog.flags.BoolVar(&prog.opts.SkipFailed, "skip-failed", false, "do not exit on non-fatal failures; skip failed element and proceed instead")
 	prog.flags.BoolVar(&prog.opts.SlowMode, "slow-mode", false, "waits 1s after every 50 directory creations in --mode=init; avoids thrashing filesystem")
 	prog.flags.IntVar(&prog.opts.InitDepth, "init-depth", defaultInitDepth, "decides how deep to mirror in --mode=init, 0 is dir root; -1 is unlimited depth")
@@ -91,6 +92,9 @@ func (prog *program) parseArgs(cliArgs []string) error {
 	}
 	if !setFlags["skip-empty"] {
 		prog.opts.SkipEmpty = yamlOpts.SkipEmpty
+	}
+	if !setFlags["remove-empty"] {
+		prog.opts.RemoveEmpty = yamlOpts.RemoveEmpty
 	}
 	if !setFlags["skip-failed"] {
 		prog.opts.SkipFailed = yamlOpts.SkipFailed

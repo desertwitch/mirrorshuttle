@@ -85,11 +85,20 @@ func (prog *program) moveFiles(ctx context.Context) error {
 
 		if e.IsDir() { // Handle directories.
 			if _, err := prog.fsys.Stat(movePath); errors.Is(err, os.ErrNotExist) { // Check if the target directory exists.
-				if prog.opts.SkipEmpty {
-					if empty, err := prog.isEmptyStructure(ctx, path); err != nil { // Check if the source directory is empty.
+				if prog.opts.SkipEmpty { // Check if empty source directories should be skipped.
+					if empty, err := prog.isEmptyStructure(ctx, path); err != nil {
 						return prog.walkError(e, fmt.Errorf("failed checking for emptiness: %q (%w)", path, err))
-					} else if empty { // The source directory is completely empty, skip it.
+					} else if empty { // The source directory is empty, skip it.
 						prog.log.Warn("path skipped", "op", prog.opts.Mode, "path", movePath, "reason", "is_empty_dir")
+
+						if prog.opts.RemoveEmpty { // Check if empty source directories should be removed.
+							if !prog.opts.DryRun {
+								if err := prog.fsys.RemoveAll(path); err != nil { // The source directory is empty, remove it.
+									return prog.walkError(e, fmt.Errorf("failed to remove: %q (%w)", path, err))
+								}
+							}
+							prog.log.Warn("directory removed", "op", prog.opts.Mode, "path", movePath, "reason", "is_empty_dir")
+						}
 
 						return filepath.SkipDir // Do not traverse deeper.
 					}

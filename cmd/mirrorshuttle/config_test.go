@@ -36,6 +36,7 @@ func Test_Unit_ParseArgs_Unset_Defaults_Success(t *testing.T) {
 	require.False(t, prog.opts.Direct)
 	require.False(t, prog.opts.Verify)
 	require.False(t, prog.opts.SkipEmpty)
+	require.False(t, prog.opts.RemoveEmpty)
 	require.False(t, prog.opts.SkipFailed)
 	require.False(t, prog.opts.DryRun)
 	require.False(t, prog.opts.SlowMode)
@@ -63,6 +64,7 @@ func Test_Unit_ParseArgs_All_Success(t *testing.T) {
 		"--slow-mode",
 		"--init-depth=5",
 		"--skip-empty",
+		"--remove-empty",
 		"--skip-failed",
 		"--json",
 		"--log-level=warn",
@@ -82,6 +84,7 @@ func Test_Unit_ParseArgs_All_Success(t *testing.T) {
 	require.True(t, prog.opts.Direct)
 	require.True(t, prog.opts.Verify)
 	require.True(t, prog.opts.SkipEmpty)
+	require.True(t, prog.opts.RemoveEmpty)
 	require.True(t, prog.opts.SkipFailed)
 	require.True(t, prog.opts.DryRun)
 	require.True(t, prog.opts.SlowMode)
@@ -106,6 +109,7 @@ dry-run: true
 slow-mode: true
 init-depth: 5
 skip-empty: true
+remove-empty: true
 skip-failed: true
 log-level: warn
 json: true
@@ -130,6 +134,7 @@ json: true
 	require.True(t, prog.opts.Direct)
 	require.True(t, prog.opts.Verify)
 	require.True(t, prog.opts.SkipEmpty)
+	require.True(t, prog.opts.RemoveEmpty)
 	require.True(t, prog.opts.SkipFailed)
 	require.True(t, prog.opts.DryRun)
 	require.True(t, prog.opts.SlowMode)
@@ -154,6 +159,7 @@ dry-run: false
 slow-mode: false
 init-depth: 3
 skip-empty: false
+remove-empty: false
 skip-failed: false
 json: false
 log-level: invalid
@@ -176,6 +182,7 @@ log-level: invalid
 		"--init-depth=5",
 		"--dry-run",
 		"--skip-empty",
+		"--remove-empty",
 		"--skip-failed",
 		"--json",
 		"--log-level=warn",
@@ -195,6 +202,7 @@ log-level: invalid
 	require.True(t, prog.opts.Direct)
 	require.True(t, prog.opts.Verify)
 	require.True(t, prog.opts.SkipEmpty)
+	require.True(t, prog.opts.RemoveEmpty)
 	require.True(t, prog.opts.SkipFailed)
 	require.True(t, prog.opts.DryRun)
 	require.True(t, prog.opts.SlowMode)
@@ -211,17 +219,18 @@ func Test_Unit_ValidateOpts_ValidOptions_Success(t *testing.T) {
 
 	prog, _, _ := setupTestProgram(fs, nil)
 	prog.opts = &programOptions{
-		Mode:       "init",
-		MirrorRoot: "/mirror",
-		RealRoot:   "/real",
-		Excludes:   []string{"/exclude", "/exclude2"},
-		Direct:     true,
-		Verify:     true,
-		SkipEmpty:  true,
-		SkipFailed: true,
-		DryRun:     true,
-		LogLevel:   "warn",
-		JSON:       true,
+		Mode:        "init",
+		MirrorRoot:  "/mirror",
+		RealRoot:    "/real",
+		Excludes:    []string{"/exclude", "/exclude2"},
+		Direct:      true,
+		Verify:      true,
+		SkipEmpty:   true,
+		RemoveEmpty: true,
+		SkipFailed:  true,
+		DryRun:      true,
+		LogLevel:    "warn",
+		JSON:        true,
 	}
 
 	err := prog.validateOpts()
@@ -236,17 +245,18 @@ func Test_Unit_ValidateOpts_InvalidLogLevel_Error(t *testing.T) {
 
 	prog, _, _ := setupTestProgram(fs, nil)
 	prog.opts = &programOptions{
-		Mode:       "init",
-		MirrorRoot: "/mirror",
-		RealRoot:   "/real",
-		Excludes:   []string{"/exclude", "/exclude2"},
-		Direct:     true,
-		Verify:     true,
-		SkipEmpty:  true,
-		SkipFailed: true,
-		DryRun:     true,
-		LogLevel:   "warnx",
-		JSON:       true,
+		Mode:        "init",
+		MirrorRoot:  "/mirror",
+		RealRoot:    "/real",
+		Excludes:    []string{"/exclude", "/exclude2"},
+		Direct:      true,
+		Verify:      true,
+		SkipEmpty:   true,
+		RemoveEmpty: true,
+		SkipFailed:  true,
+		DryRun:      true,
+		LogLevel:    "warnx",
+		JSON:        true,
 	}
 
 	err := prog.validateOpts()
