@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 	"time"
 
 	"github.com/spf13/afero"
@@ -162,41 +161,4 @@ func (prog *program) createMirrorStructure(ctx context.Context) error {
 	}
 
 	return nil
-}
-
-func (prog *program) isEmptyStructure(ctx context.Context, path string) (bool, error) {
-	path = filepath.Clean(strings.TrimSpace(path))
-
-	empty := true
-
-	// Walk the given path for any files in the structure.
-	if err := afero.Walk(prog.fsys, path, func(subpath string, e os.FileInfo, err error) error {
-		if err := ctx.Err(); err != nil {
-			// An interrupt was received, also interrupt the walk.
-			return fmt.Errorf("failed checking context: %w", err)
-		}
-
-		if err != nil {
-			// An error has occurred (permissioning, ...), not safe to continue.
-			return fmt.Errorf("failed to walk: %q (%w)", subpath, err)
-		}
-
-		if !e.IsDir() {
-			// Output the file that was found, but also continue to get the full list.
-			prog.log.Warn("unmoved file found", "op", prog.opts.Mode, "path", subpath)
-			empty = false
-		}
-
-		return nil
-	}); err != nil {
-		return false, err
-	}
-
-	if !empty {
-		// The structure contained files.
-		return false, nil
-	}
-
-	// The structure contained no files.
-	return true, nil
 }

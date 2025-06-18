@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io/fs"
 	"log/slog"
+	"os"
 	"path/filepath"
 	"testing"
 	"time"
@@ -286,4 +287,77 @@ func Test_Unit_DirDepth_Table(t *testing.T) {
 			require.Equal(t, tt.expected, result, "relPath: %q (cleaned: %q)", tt.relPath, clean)
 		})
 	}
+}
+
+// Expectation: The function should report a known empty structure as empty.
+func Test_Unit_IsEmptyStructure_Success(t *testing.T) {
+	t.Parallel()
+
+	fs := setupTestFs()
+	paths := []string{
+		"/empty/dir1",
+		"/empty/dir2/subdir",
+	}
+	err := createDirStructure(fs, paths)
+	require.NoError(t, err)
+
+	prog, _, _ := setupTestProgram(fs, nil)
+	empty, err := prog.isEmptyStructure(t.Context(), "/empty")
+
+	require.NoError(t, err)
+	require.True(t, empty)
+}
+
+// Expectation: The function should report a known not-empty structure as not-empty.
+func Test_Unit_IsEmptyStructure_NotEmpty_Success(t *testing.T) {
+	t.Parallel()
+
+	fs := setupTestFs()
+	files := map[string]string{
+		"/nonempty/dir1/file.txt": "content",
+		"/nonempty/dir2/file.txt": "content",
+	}
+	err := createFiles(fs, files)
+	require.NoError(t, err)
+
+	prog, _, _ := setupTestProgram(fs, nil)
+	empty, err := prog.isEmptyStructure(t.Context(), "/nonempty")
+
+	require.NoError(t, err)
+	require.False(t, empty)
+}
+
+// Expectation: The function should respond to a context cancellation.
+func Test_Unit_IsEmptyStructure_CtxCancel_Error(t *testing.T) {
+	t.Parallel()
+
+	fs := setupTestFs()
+	paths := []string{
+		"/empty/dir1",
+		"/empty/dir2/subdir",
+	}
+	err := createDirStructure(fs, paths)
+	require.NoError(t, err)
+
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+
+	prog, _, _ := setupTestProgram(fs, nil)
+	empty, err := prog.isEmptyStructure(ctx, "/empty")
+
+	require.ErrorIs(t, err, context.Canceled)
+	require.False(t, empty)
+}
+
+// Expectation: The function should not run with a non-existing path.
+func Test_Unit_IsEmptyStructure_NonExistentPath_Error(t *testing.T) {
+	t.Parallel()
+
+	fs := setupTestFs()
+
+	prog, _, _ := setupTestProgram(fs, nil)
+	empty, err := prog.isEmptyStructure(t.Context(), "/nonexistent")
+
+	require.ErrorIs(t, err, os.ErrNotExist)
+	require.False(t, empty)
 }

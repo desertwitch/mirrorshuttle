@@ -7,8 +7,11 @@ import (
 	"io"
 	"io/fs"
 	"log/slog"
+	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/spf13/afero"
 )
 
 type excludeArg []string
@@ -59,6 +62,48 @@ func (prog *program) walkError(e fs.FileInfo, err error) error {
 	}
 
 	return err
+}
+
+func (prog *program) isEmptyStructure(ctx context.Context, path string) (bool, error) {
+	path = filepath.Clean(strings.TrimSpace(path))
+
+	empty := true
+
+	// Walk the given path for any files in the structure.
+	if err := afero.Walk(prog.fsys, path, func(subpath string, e os.FileInfo, err error) error {
+		if err := ctx.Err(); err != nil {
+			// An interrupt was received, also interrupt the walk.
+			return fmt.Errorf("failed checking context: %w", err)
+		}
+
+		if err != nil {
+			// An error has occurred (permissioning, ...), not safe to continue.
+			return fmt.Errorf("failed to walk: %q (%w)", subpath, err)
+		}
+
+		if !e.IsDir() {
+			empty = false
+			if prog.opts.Mode == "init" {
+				// Output the file that was found, but also continue to get the full list.
+				prog.log.Warn("unmoved file found", "op", prog.opts.Mode, "path", subpath)
+			} else {
+				// Immediately return in other modes, where we do not care about the output.
+				return filepath.SkipAll
+			}
+		}
+
+		return nil
+	}); err != nil && !errors.Is(err, filepath.SkipAll) {
+		return false, err
+	}
+
+	if !empty {
+		// The structure contained files.
+		return false, nil
+	}
+
+	// The structure contained no files.
+	return true, nil
 }
 
 func isExcluded(path string, excludes []string) bool {
