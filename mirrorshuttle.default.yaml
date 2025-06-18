@@ -1,0 +1,89 @@
+# Absolute path to the mirror structure. This is where mirrored directories will
+# be created and from where files will be moved. It can be a sub-directory of
+# `--target`, and is excluded from being mirrored.
+mirror: /mirror/path
+
+# Absolute path to the real (target) structure. This is the source of truth in
+# init mode and the destination in move mode.
+target: /real/path
+
+# Absolute path to exclude from operations. Can be repeated. This prevents
+# specified directories from being mirrored or moved.
+exclude:
+  - /real/path/skip-this
+  - /real/path/temp
+
+# Attempt atomic rename operations. If this fails (e.g., across filesystems),
+# fallback to copy and remove.
+#
+# In union filesystems, this may result in allocation or disk-relocation methods
+# being circumvented and files staying on the same disk despite that possibly
+# not being wanted. Disable this setting for such use cases.
+#
+# Default: false
+direct: true
+
+# Re-read the target file again after moving and verify against a previously
+# calculated (source file) hash, ensuring target was written to disk without
+# corruption. Requires a full re-read of the target file.
+#
+# Default: false
+verify: false
+
+# Do not move empty directories in `--mode=move`. This setting can help prevent
+# accidental re-creation of directories which no longer exist in the target
+# structure, if no files are contained (to be moved). Such a case can happen
+# when the target structure has changed and it was forgotten to run `--mode=init`
+# to reflect these changes on the mirror.
+#
+# Default: true
+skip-empty: true
+
+# Remove empty mirror directories in `--mode=move`; only when used together with
+# `--skip-empty` and no longer existing on the target. While not a replacement
+# for a full `--mode=init`, this setting can help weed out no longer existing
+# directories between any two `--mode=move`s.
+#
+# A major downside is that it also removes newly created directories within the
+# mirror, those which do not contain files to be moved yet. Hence, using only
+# `--skip-empty` and doing proper `--mode=init`s is to always be preferred over
+# using this for cleanup purposes in production.
+#
+# Default: false
+remove-empty: false
+
+# Do not exit on non-fatal failures, skip the failed element and proceed
+# instead; returns with a partial failure return code.
+#
+# Default: false
+skip-failed: false
+
+# Adds a 1 second timeout after each 50 directories created in `--mode=init`;
+# helps avoid thrashing more sensitive filesystems.
+#
+# Default: false
+slow-mode: false
+
+# A numeric value that decides how deep directories are mirrored in
+# `--mode=init`. A value of 0 mirrors only the contents of the directory root,
+# conversely negative values impose no limit.
+#
+# Default: -1
+init-depth: -1
+
+# Perform a preview of operations, without filesystem changes. Useful for
+# verifying behavior before execution.
+#
+# Default: false
+dry-run: false
+
+# Controls verbosity of the operational logs that are emitted.
+#
+# Default: info
+log-level: info
+
+# Outputs in JSON format the operational logs that are emitted. Allows for
+# programmatic parsing of output from standard error (stderr).
+#
+# Default: false
+json: false
