@@ -404,6 +404,138 @@ func Test_Unit_MoveFiles_EmptyMirror_Success(t *testing.T) {
 	require.NoError(t, err)
 }
 
+// Expectation: The function should skip over the empty source directories.
+func Test_Unit_MoveFiles_SkipEmptyTrue_Success(t *testing.T) {
+	t.Parallel()
+
+	fs := setupTestFs()
+	err := createDirStructure(fs, []string{"/mirror/a/b/c", "/real"})
+	require.NoError(t, err)
+
+	opts := &programOptions{
+		MirrorRoot: "/mirror",
+		RealRoot:   "/real",
+		DryRun:     false,
+		SkipEmpty:  true,
+	}
+
+	prog, _, stderr := setupTestProgram(fs, opts)
+
+	err = prog.moveFiles(t.Context())
+	require.NoError(t, err)
+
+	// Verify no empty directories were created.
+	_, err = fs.Stat("/real/a")
+	require.ErrorIs(t, err, os.ErrNotExist)
+
+	_, err = fs.Stat("/real/a/b")
+	require.ErrorIs(t, err, os.ErrNotExist)
+
+	_, err = fs.Stat("/real/a/b/c")
+	require.ErrorIs(t, err, os.ErrNotExist)
+
+	// Empty directories should be reported as skipped.
+	require.Contains(t, stderr.String(), "skipped")
+}
+
+// Expectation: The function should skip over the empty source directories, but move the files.
+func Test_Unit_MoveFiles_SkipEmptyTrueWithFiles_Success(t *testing.T) {
+	t.Parallel()
+
+	fs := setupTestFs()
+
+	err := createDirStructure(fs,
+		[]string{
+			"/mirror/a/b/c",
+			"/real",
+		})
+	require.NoError(t, err)
+
+	files := map[string]string{
+		"/mirror/deep/nested/file.txt": "content",
+	}
+	err = createFiles(fs, files)
+	require.NoError(t, err)
+
+	opts := &programOptions{
+		MirrorRoot: "/mirror",
+		RealRoot:   "/real",
+		DryRun:     false,
+		SkipEmpty:  true,
+	}
+
+	prog, _, stderr := setupTestProgram(fs, opts)
+
+	err = prog.moveFiles(t.Context())
+	require.NoError(t, err)
+
+	// Verify no empty directories were created.
+	_, err = fs.Stat("/real/a")
+	require.ErrorIs(t, err, os.ErrNotExist)
+
+	_, err = fs.Stat("/real/a/b")
+	require.ErrorIs(t, err, os.ErrNotExist)
+
+	_, err = fs.Stat("/real/a/b/c")
+	require.ErrorIs(t, err, os.ErrNotExist)
+
+	// Verify target directory structure is created.
+	_, err = fs.Stat("/real/deep/nested")
+	require.NoError(t, err)
+
+	// Verify file is moved.
+	content, err := afero.ReadFile(fs, "/real/deep/nested/file.txt")
+	require.NoError(t, err)
+	require.Equal(t, "content", string(content))
+
+	// Empty directories should be reported as skipped.
+	require.Contains(t, stderr.String(), "skipped")
+}
+
+// Expectation: The function should create the non-empty source directories and move the files.
+func Test_Unit_MoveFiles_SkipEmptyTrueWithNoEmpties_Success(t *testing.T) {
+	t.Parallel()
+
+	fs := setupTestFs()
+
+	err := createDirStructure(fs,
+		[]string{
+			"/mirror",
+			"/real",
+		})
+	require.NoError(t, err)
+
+	files := map[string]string{
+		"/mirror/deep/nested/file.txt": "content",
+	}
+	err = createFiles(fs, files)
+	require.NoError(t, err)
+
+	opts := &programOptions{
+		MirrorRoot: "/mirror",
+		RealRoot:   "/real",
+		DryRun:     false,
+		SkipEmpty:  true,
+	}
+
+	prog, _, stderr := setupTestProgram(fs, opts)
+
+	err = prog.moveFiles(t.Context())
+	require.NoError(t, err)
+
+	// Verify target directory structure is created.
+	_, err = fs.Stat("/real/deep/nested")
+	require.NoError(t, err)
+
+	// Verify file is moved.
+	content, err := afero.ReadFile(fs, "/real/deep/nested/file.txt")
+	require.NoError(t, err)
+	require.Equal(t, "content", string(content))
+
+	// Full directories should not be reported as skipped.
+	require.NotContains(t, stderr.String(), "skipped")
+}
+
 // Expectation: The function should not complain or report if a directory exists.
 func Test_Unit_MoveFiles_DirectoryAlreadyExists_Success(t *testing.T) {
 	t.Parallel()

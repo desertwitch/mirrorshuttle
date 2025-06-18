@@ -35,6 +35,7 @@ func Test_Unit_ParseArgs_Unset_Defaults_Success(t *testing.T) {
 	require.Empty(t, prog.opts.Excludes)
 	require.False(t, prog.opts.Direct)
 	require.False(t, prog.opts.Verify)
+	require.False(t, prog.opts.SkipEmpty)
 	require.False(t, prog.opts.SkipFailed)
 	require.False(t, prog.opts.DryRun)
 	require.False(t, prog.opts.SlowMode)
@@ -61,6 +62,7 @@ func Test_Unit_ParseArgs_All_Success(t *testing.T) {
 		"--dry-run",
 		"--slow-mode",
 		"--init-depth=5",
+		"--skip-empty",
 		"--skip-failed",
 		"--json",
 		"--log-level=warn",
@@ -79,6 +81,7 @@ func Test_Unit_ParseArgs_All_Success(t *testing.T) {
 	require.Equal(t, "/exclude", prog.opts.Excludes[0])
 	require.True(t, prog.opts.Direct)
 	require.True(t, prog.opts.Verify)
+	require.True(t, prog.opts.SkipEmpty)
 	require.True(t, prog.opts.SkipFailed)
 	require.True(t, prog.opts.DryRun)
 	require.True(t, prog.opts.SlowMode)
@@ -102,6 +105,7 @@ verify: true
 dry-run: true
 slow-mode: true
 init-depth: 5
+skip-empty: true
 skip-failed: true
 log-level: warn
 json: true
@@ -125,6 +129,7 @@ json: true
 	require.Equal(t, "/exclude", prog.opts.Excludes[0])
 	require.True(t, prog.opts.Direct)
 	require.True(t, prog.opts.Verify)
+	require.True(t, prog.opts.SkipEmpty)
 	require.True(t, prog.opts.SkipFailed)
 	require.True(t, prog.opts.DryRun)
 	require.True(t, prog.opts.SlowMode)
@@ -148,6 +153,7 @@ verify: false
 dry-run: false
 slow-mode: false
 init-depth: 3
+skip-empty: false
 skip-failed: false
 json: false
 log-level: invalid
@@ -169,6 +175,7 @@ log-level: invalid
 		"--slow-mode",
 		"--init-depth=5",
 		"--dry-run",
+		"--skip-empty",
 		"--skip-failed",
 		"--json",
 		"--log-level=warn",
@@ -187,6 +194,7 @@ log-level: invalid
 	require.Equal(t, "/exclude", prog.opts.Excludes[0])
 	require.True(t, prog.opts.Direct)
 	require.True(t, prog.opts.Verify)
+	require.True(t, prog.opts.SkipEmpty)
 	require.True(t, prog.opts.SkipFailed)
 	require.True(t, prog.opts.DryRun)
 	require.True(t, prog.opts.SlowMode)
@@ -209,6 +217,7 @@ func Test_Unit_ValidateOpts_ValidOptions_Success(t *testing.T) {
 		Excludes:   []string{"/exclude", "/exclude2"},
 		Direct:     true,
 		Verify:     true,
+		SkipEmpty:  true,
 		SkipFailed: true,
 		DryRun:     true,
 		LogLevel:   "warn",
@@ -233,6 +242,7 @@ func Test_Unit_ValidateOpts_InvalidLogLevel_Error(t *testing.T) {
 		Excludes:   []string{"/exclude", "/exclude2"},
 		Direct:     true,
 		Verify:     true,
+		SkipEmpty:  true,
 		SkipFailed: true,
 		DryRun:     true,
 		LogLevel:   "warnx",

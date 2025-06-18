@@ -122,6 +122,15 @@ system locations; ensure they are executable by running `chmod +x` before use.
 
         Default: false
 
+    --skip-empty
+        Optional. Do not move empty directories in `--mode=move`. This setting
+        can help prevent accidental re-creation of directories which no longer
+        exist in the target structure, if no files are contained (to be moved).
+        Such a case can happen when the target structure has changed and it was
+        forgotten to run `--mode=init` to reflect these changes on the mirror.
+
+        Default: false
+
     --skip-failed
         Optional. Do not exit on non-fatal failures, skip the failed element
         and proceed instead; returns with a partial failure return code.
@@ -167,6 +176,7 @@ system locations; ensure they are executable by running `chmod +x` before use.
       - /real/path/temp
     direct: true
     verify: false
+    skip-empty: false
     skip-failed: false
     slow-mode: false
     init-depth: -1
