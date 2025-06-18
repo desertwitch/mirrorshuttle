@@ -44,7 +44,7 @@ func (prog *program) moveFiles(ctx context.Context) error {
 			}
 
 			// Another failure has occurred during the walk (permissions, ...), handle it.
-			return prog.walkError(fmt.Errorf("failed to walk: %q (%w)", path, err))
+			return prog.walkError(e, fmt.Errorf("failed to walk: %q (%w)", path, err))
 		}
 
 		if isExcluded(path, prog.opts.Excludes) { // Check if the source path is excluded.
@@ -61,7 +61,7 @@ func (prog *program) moveFiles(ctx context.Context) error {
 		// Construct the target path from the mirror's relative path.
 		relPath, err := filepath.Rel(prog.opts.MirrorRoot, path)
 		if err != nil {
-			return prog.walkError(fmt.Errorf("failed to get relative path: %q (%w)", path, err))
+			return prog.walkError(e, fmt.Errorf("failed to get relative path: %q (%w)", path, err))
 		}
 		movePath := filepath.Join(prog.opts.RealRoot, relPath)
 
@@ -88,13 +88,13 @@ func (prog *program) moveFiles(ctx context.Context) error {
 				if !prog.opts.DryRun {
 					// Create the target directory, if it does not exist.
 					if err := prog.fsys.Mkdir(movePath, dirBasePerm); err != nil {
-						return prog.walkError(fmt.Errorf("failed to create: %q (%w)", movePath, err))
+						return prog.walkError(e, fmt.Errorf("failed to create: %q (%w)", movePath, err))
 					}
 					prog.state.createdDirs++
 				}
 				prog.log.Info("directory created", "op", prog.opts.Mode, "path", movePath, "dry-run", prog.opts.DryRun)
 			} else if err != nil {
-				return prog.walkError(fmt.Errorf("failed to stat: %q (%w)", movePath, err))
+				return prog.walkError(e, fmt.Errorf("failed to stat: %q (%w)", movePath, err))
 			}
 
 			return nil
@@ -107,7 +107,7 @@ func (prog *program) moveFiles(ctx context.Context) error {
 			// The target file exists; do not overwrite it, set unmoved files bit and skip it.
 			return nil
 		} else if !errors.Is(err, os.ErrNotExist) {
-			return prog.walkError(fmt.Errorf("failed to stat: %q (%w)", movePath, err))
+			return prog.walkError(e, fmt.Errorf("failed to stat: %q (%w)", movePath, err))
 		}
 
 		if !prog.opts.DryRun {
@@ -124,7 +124,7 @@ func (prog *program) moveFiles(ctx context.Context) error {
 			// Do the regular copy and remove operation and handle any failures.
 			retHashes, err := prog.copyAndRemove(ctx, path, movePath)
 			if err != nil {
-				return prog.walkError(fmt.Errorf("failed to move: %q -x-> %q (%w)", path, movePath, err))
+				return prog.walkError(e, fmt.Errorf("failed to move: %q -x-> %q (%w)", path, movePath, err))
 			}
 
 			// Output the SHA-256 hashes for this operation as well, as parsing programs may care about them.

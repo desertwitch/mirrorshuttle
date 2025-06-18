@@ -1,13 +1,32 @@
 package main
 
 import (
+	"context"
 	"errors"
+	"io/fs"
 	"log/slog"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 )
+
+type fakeFileInfo struct {
+	name    string
+	size    int64
+	mode    fs.FileMode
+	modTime time.Time
+	isDir   bool
+	sys     any
+}
+
+func (f fakeFileInfo) Name() string       { return f.name }
+func (f fakeFileInfo) Size() int64        { return f.size }
+func (f fakeFileInfo) Mode() fs.FileMode  { return f.mode }
+func (f fakeFileInfo) ModTime() time.Time { return f.modTime }
+func (f fakeFileInfo) IsDir() bool        { return f.isDir }
+func (f fakeFileInfo) Sys() any           { return f.sys }
 
 // Expectation: The function should handle the exclusions according to the table's expectations.
 func Test_Unit_IsExcluded_Table(t *testing.T) {
@@ -87,12 +106,59 @@ func Test_Unit_WalkError_SkipFailedTrue_Success(t *testing.T) {
 	opts := &programOptions{SkipFailed: true}
 	prog, _, stderr := setupTestProgram(fs, opts)
 
-	err := errors.New("mock error")
-	result := prog.walkError(err)
+	mockErr := errors.New("mock error")
+
+	e := &fakeFileInfo{
+		isDir: false,
+	}
+
+	result := prog.walkError(e, mockErr)
 
 	require.NoError(t, result)
 	require.True(t, prog.state.hasPartialFailures)
 	require.Contains(t, stderr.String(), "skipped")
+}
+
+// Expectation: The function should report and skip errors, not return them.
+func Test_Unit_WalkError_SkipFailedTrueDir_Success(t *testing.T) {
+	t.Parallel()
+
+	fs := setupTestFs()
+
+	opts := &programOptions{SkipFailed: true}
+	prog, _, stderr := setupTestProgram(fs, opts)
+
+	mockErr := errors.New("mock error")
+
+	e := &fakeFileInfo{
+		isDir: true,
+	}
+
+	result := prog.walkError(e, mockErr)
+
+	require.Equal(t, filepath.SkipDir, result)
+	require.True(t, prog.state.hasPartialFailures)
+	require.Contains(t, stderr.String(), "skipped")
+}
+
+// Expectation: The function should always return context errors, not skip them.
+func Test_Unit_WalkError_SkipFailedTrueCtx_Error(t *testing.T) {
+	t.Parallel()
+
+	fs := setupTestFs()
+
+	opts := &programOptions{SkipFailed: true}
+	prog, stdout, _ := setupTestProgram(fs, opts)
+
+	e := &fakeFileInfo{
+		isDir: false,
+	}
+
+	result := prog.walkError(e, context.Canceled)
+
+	require.Equal(t, context.Canceled, result)
+	require.False(t, prog.state.hasPartialFailures)
+	require.NotContains(t, stdout.String(), "skipped")
 }
 
 // Expectation: The function should return errors, not skip them.
@@ -105,7 +171,12 @@ func Test_Unit_WalkError_SkipFailedFalse_Error(t *testing.T) {
 	prog, stdout, _ := setupTestProgram(fs, opts)
 
 	mockErr := errors.New("real error")
-	result := prog.walkError(mockErr)
+
+	e := &fakeFileInfo{
+		isDir: false,
+	}
+
+	result := prog.walkError(e, mockErr)
 
 	require.Equal(t, mockErr, result)
 	require.False(t, prog.state.hasPartialFailures)

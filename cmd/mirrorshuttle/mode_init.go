@@ -83,7 +83,7 @@ func (prog *program) createMirrorStructure(ctx context.Context) error {
 			}
 
 			// Another failure has occurred during the walk (permissions, ...), handle it.
-			return prog.walkError(fmt.Errorf("failed to walk: %q (%w)", path, err))
+			return prog.walkError(e, fmt.Errorf("failed to walk: %q (%w)", path, err))
 		}
 
 		if !e.IsDir() {
@@ -108,7 +108,7 @@ func (prog *program) createMirrorStructure(ctx context.Context) error {
 		// Construct the mirror path from the target's relative path.
 		relPath, err := filepath.Rel(prog.opts.RealRoot, path)
 		if err != nil {
-			return prog.walkError(fmt.Errorf("failed to get relative path: %q (%w)", path, err))
+			return prog.walkError(e, fmt.Errorf("failed to get relative path: %q (%w)", path, err))
 		}
 		mirrorPath := filepath.Join(prog.opts.MirrorRoot, relPath)
 
@@ -130,7 +130,7 @@ func (prog *program) createMirrorStructure(ctx context.Context) error {
 		if !prog.opts.DryRun {
 			// Create the respective mirror path for the specific target path.
 			if err := prog.fsys.Mkdir(mirrorPath, dirBasePerm); err != nil {
-				return prog.walkError(fmt.Errorf("failed to create: %q (%w)", mirrorPath, err))
+				return prog.walkError(e, fmt.Errorf("failed to create: %q (%w)", mirrorPath, err))
 			}
 			createdDirsBatch++
 			prog.state.createdDirs++

@@ -2,8 +2,10 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"log/slog"
 	"path/filepath"
 	"strings"
@@ -38,8 +40,8 @@ func parseLogLevel(levelStr string) (slog.Level, error) {
 	}
 }
 
-func (prog *program) walkError(err error) error {
-	if prog.opts.SkipFailed {
+func (prog *program) walkError(e fs.FileInfo, err error) error {
+	if !errors.Is(err, context.Canceled) && prog.opts.SkipFailed {
 		prog.state.hasPartialFailures = true
 
 		prog.log.Error("path skipped",
@@ -48,6 +50,10 @@ func (prog *program) walkError(err error) error {
 			"error-type", "runtime",
 			"reason", "error_occurred",
 		)
+
+		if e.IsDir() {
+			return filepath.SkipDir // Do not traverse deeper.
+		}
 
 		return nil
 	}
