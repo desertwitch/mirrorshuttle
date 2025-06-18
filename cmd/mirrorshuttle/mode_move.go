@@ -97,7 +97,7 @@ func (prog *program) moveFiles(ctx context.Context) error {
 									return prog.walkError(e, fmt.Errorf("failed to remove: %q (%w)", path, err))
 								}
 							}
-							prog.log.Warn("empty directory removed", "op", prog.opts.Mode, "path", path, "reason", "dst_no_longer_exists")
+							prog.log.Warn("empty directory removed", "op", prog.opts.Mode, "path", path, "reason", "dst_no_longer_exists", "dry-run", prog.opts.DryRun)
 						}
 
 						return filepath.SkipDir // Do not traverse deeper.
