@@ -198,6 +198,7 @@ system locations; ensure they are executable by running `chmod +x` before use.
     log-level: info
     json: false
 
+For convenience, a default configuration is provided within the repository.
 Invalid configurations (unknown or malformed fields) are rejected at runtime.
 
 #### RETURN CODES
