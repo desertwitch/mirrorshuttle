@@ -226,6 +226,14 @@ target structure changes outside of mirrorshuttle's operation, `--mode=init` can
 mirror again any new structural changes, but will need the `--mirror` directory
 to not contain unmoved files, otherwise requiring manual resolution by the user.
 
+If forgetting to run another `--mode=init` after the `--target` location has
+changed, any since deleted folders may be recreated upon running `--mode=move`,
+which can be very annoying to clean up afterwards. The program has no notion of
+whether any not target-existing folder is a new folder to be moved or a deletion
+which happened since the last move. This can be avoided in whole by running the
+`--mode=init` after any target changes (as intended) or, as a safeguard, moving
+always with the option `--skip-empty` enabled (which it defaults to, anyway).
+
 The program is built to automate workflows as much as possible - without
 compromising safety. If it cannot proceed safely, it will fail early with clear,
 descriptive error messages, leaving any inconsistent directory states for the

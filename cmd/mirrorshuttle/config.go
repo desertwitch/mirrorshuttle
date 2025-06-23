@@ -29,7 +29,7 @@ func (prog *program) parseArgs(cliArgs []string) error {
 	prog.flags.Usage = func() {
 		fmt.Fprintf(prog.stderr, "usage: %q --mode=init|move --mirror=ABSPATH --target=ABSPATH\n", cliArgs[0])
 		fmt.Fprintf(prog.stderr, "\t[--exclude=ABSPATH] [--exclude=ABSPATH] [--direct] [--verify] [--skip-empty] [--remove-empty]\n")
-		fmt.Fprintf(prog.stderr, "\t[--skip-failed] [--slow-mode] [--init-depth=NUM] [--dry-run] [--log-level=debug|info|warn|error] [--json]\n\n")
+		fmt.Fprintf(prog.stderr, "\t[--skip-failed=false] [--slow-mode] [--init-depth=NUM] [--dry-run] [--log-level=debug|info|warn|error] [--json]\n\n")
 		prog.flags.PrintDefaults()
 	}
 
