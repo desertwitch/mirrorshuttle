@@ -146,8 +146,7 @@ func (prog *program) moveFiles(ctx context.Context) error {
 			}
 
 			// Output the SHA-256 hashes for this operation as well, as parsing programs may care about them.
-			prog.log.Info(
-				"file moved",
+			prog.log.Info("file moved",
 				"op", prog.opts.Mode,
 				"mode", "c+r",
 				"src", path,
@@ -156,8 +155,8 @@ func (prog *program) moveFiles(ctx context.Context) error {
 				"dstHash", retHashes.dstHash,
 				"verifyHash", retHashes.verifyHash,
 				"verify", prog.opts.Verify,
-				"dry-run", prog.opts.DryRun,
-			)
+				"dry-run", prog.opts.DryRun)
+
 			prog.state.movedFiles++
 
 			return nil

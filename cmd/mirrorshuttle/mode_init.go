@@ -141,14 +141,12 @@ func (prog *program) createMirrorStructure(ctx context.Context) error {
 		}
 
 		if !prog.opts.DryRun && prog.opts.SlowMode {
-			prog.log.Info(
-				"directory created",
+			prog.log.Info("directory created",
 				"op", prog.opts.Mode,
 				"path", mirrorPath,
 				"slow-mode", prog.opts.SlowMode,
 				"slow-batch", fmt.Sprintf("%d/%d", createdDirsBatch, dirCreationBatch),
-				"dry-run", prog.opts.DryRun,
-			)
+				"dry-run", prog.opts.DryRun)
 
 			return nil
 		}
