@@ -18,10 +18,6 @@
 </div>
 
 <div align="center">
-<p><b>This software is in active development, all pre-1.0 releases should be considered experimental.</b></p>
-</div><br>
-
-<div align="center">
     <img alt="Chart" src="assets/chart-w.png">
 </div>
 
