@@ -3,7 +3,6 @@ linters:
     disable:
             - cyclop
             - depguard
-            - dupl
             - exhaustruct
             - funlen
             - gochecknoglobals
@@ -13,7 +12,6 @@ linters:
             - nonamedreturns
             - tagliatelle
             - tenv
-            - testpackage
             - varnamelen
             - wsl
 
@@ -77,5 +75,6 @@ issues:
         # Exclude some linters from running on tests files.
         - path: _test\.go
           linters:
+            - dupl
             - err113
             - ireturn
