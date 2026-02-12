@@ -40,6 +40,7 @@ archives:
     files:
       - README
       - LICENSE
+      - mirrorshuttle.yaml
 
 signs:
   - artifacts: checksum
