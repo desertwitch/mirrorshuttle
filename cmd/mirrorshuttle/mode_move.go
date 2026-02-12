@@ -118,14 +118,16 @@ func (prog *program) moveFiles(ctx context.Context) error {
 			return nil
 		} // Must be a file from here downwards.
 
-		if _, err := prog.fsys.Stat(movePath); err == nil { // Check if the target file exists.
-			prog.state.hasUnmovedFiles = true
-			prog.log.Warn("target already exists", "op", prog.opts.Mode, "src", path, "dst", movePath, "action", "skipped")
+		if !prog.opts.Force { // If we are not forcing move (= not overwriting existing files).
+			if _, err := prog.fsys.Stat(movePath); err == nil { // Check if the target file exists.
+				prog.state.hasUnmovedFiles = true
+				prog.log.Warn("target already exists", "op", prog.opts.Mode, "src", path, "dst", movePath, "action", "skipped")
 
-			// The target file exists; do not overwrite it, set unmoved files bit and skip it.
-			return nil
-		} else if !errors.Is(err, os.ErrNotExist) {
-			return prog.walkError(e, fmt.Errorf("failed to stat: %q (%w)", movePath, err))
+				// The target file exists; do not overwrite it, set unmoved files bit and skip it.
+				return nil
+			} else if !errors.Is(err, os.ErrNotExist) {
+				return prog.walkError(e, fmt.Errorf("failed to stat: %q (%w)", movePath, err))
+			}
 		}
 
 		if !prog.opts.DryRun {

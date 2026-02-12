@@ -77,6 +77,12 @@ system locations; ensure they are executable by running `chmod +x` before use.
 		Optional. Absolute path to exclude from operations. Can be repeated.
 		This prevents specified directories from being mirrored or moved.
 
+	--force
+		Optional. Overwrite target files if they already exist.
+		Use this destructive option at your own risk.
+
+		Default: false
+
 	--direct
 		Optional. Attempt atomic rename operations. If this fails (e.g., across
 		filesystems), fallback to copy and remove.
@@ -159,6 +165,7 @@ system locations; ensure they are executable by running `chmod +x` before use.
 	exclude:
 	  - /real/path/skip-this
 	  - /real/path/temp
+	force: false
 	direct: false
 	verify: false
 	skip-empty: true
@@ -348,6 +355,7 @@ type programOptions struct {
 	MirrorRoot  string     `yaml:"mirror"`
 	RealRoot    string     `yaml:"target"`
 	Excludes    excludeArg `yaml:"exclude"`
+	Force       bool       `yaml:"force"`
 	Direct      bool       `yaml:"direct"`
 	Verify      bool       `yaml:"verify"`
 	SkipEmpty   bool       `yaml:"skip-empty"`

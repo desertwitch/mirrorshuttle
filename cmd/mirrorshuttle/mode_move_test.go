@@ -139,6 +139,42 @@ func Test_Unit_MoveFiles_FileAlreadyExists_Success(t *testing.T) {
 	require.True(t, prog.state.hasUnmovedFiles)
 }
 
+// Expectation: The function should not fail with conflicting existing files.
+func Test_Unit_MoveFiles_FileAlreadyExists_Force_Success(t *testing.T) {
+	t.Parallel()
+
+	fs := setupTestFs()
+	files := map[string]string{
+		"/mirror/file.txt": "mirror content",
+		"/real/file.txt":   "existing content",
+	}
+	err := createFiles(fs, files)
+	require.NoError(t, err)
+
+	opts := &programOptions{
+		MirrorRoot: "/mirror",
+		RealRoot:   "/real",
+		DryRun:     false,
+		Force:      true,
+	}
+
+	prog, _, _ := setupTestProgram(fs, opts)
+	err = prog.moveFiles(t.Context())
+	require.NoError(t, err)
+
+	// Verify existing file is overwritten.
+	content, err := afero.ReadFile(fs, "/real/file.txt")
+	require.NoError(t, err)
+	require.Equal(t, "mirror content", string(content))
+
+	// Verify mirror file no longer exists (was moved).
+	exists, err := afero.Exists(fs, "/mirror/file.txt")
+	require.NoError(t, err)
+	require.False(t, exists)
+
+	require.False(t, prog.state.hasUnmovedFiles)
+}
+
 // Expectation: The function should not move or delete excluded files.
 func Test_Unit_MoveFiles_WithSrcFileExcludes_Success(t *testing.T) {
 	t.Parallel()
@@ -963,6 +999,37 @@ func Test_Unit_CopyAndRemove_DstTmpFileExists_Success(t *testing.T) {
 
 	_, err = fs.Stat("/dst/file.txt")
 	require.NoError(t, err)
+
+	_, err = fs.Stat("/dst/file.txt.mirsht")
+	require.ErrorIs(t, err, os.ErrNotExist)
+
+	// Verify destination exists with correct content.
+	content, err := afero.ReadFile(fs, "/dst/file.txt")
+	require.NoError(t, err)
+	require.Equal(t, "hello", string(content))
+}
+
+// Expectation: The function should overwrite an existing file.
+func Test_Unit_CopyAndRemove_DstFileExists_Success(t *testing.T) {
+	t.Parallel()
+
+	fs := setupTestFs()
+	files := map[string]string{
+		"/src/file.txt": "hello",
+		"/dst/file.txt": "existing",
+	}
+	require.NoError(t, createFiles(fs, files))
+
+	prog, _, _ := setupTestProgram(fs, nil)
+
+	_, err := prog.copyAndRemove(t.Context(), "/src/file.txt", "/dst/file.txt")
+	require.NoError(t, err)
+
+	_, err = fs.Stat("/dst/file.txt")
+	require.NoError(t, err)
+
+	_, err = fs.Stat("/src/file.txt")
+	require.ErrorIs(t, err, os.ErrNotExist)
 
 	_, err = fs.Stat("/dst/file.txt.mirsht")
 	require.ErrorIs(t, err, os.ErrNotExist)

@@ -4,6 +4,7 @@ project_name: mirrorshuttle
 
 before:
   hooks:
+    - make clean
     - make vendor
     - make lint
     - make test
@@ -25,7 +26,6 @@ builds:
     goos:
       - linux
       - darwin
-      - windows
     goarch:
     - amd64
     - arm
@@ -36,12 +36,21 @@ source:
   enabled: true
 
 archives:
-  - format_overrides:
-    - formats: [ 'binary' ]
+  -
+    files:
+      - README
+      - LICENSE
 
 signs:
   - artifacts: checksum
 
 release:
-  footer: Any release files are unattended builds and served without any warranties.
+  footer: |
+    Files without an extension are all static binaries for the most common architectures.  
+    Most users will want the `linux_amd64` package (see installation instructions in `README`).  
+
+    `.txz`, `.asc` and `.md5` files are part of the Slackware distribution package.  
+    These specific packages are offered as a service for fellow Unraid OS enthusiasts.  
+
+    Do note that any release files are unattended builds and served without any warranties.
 

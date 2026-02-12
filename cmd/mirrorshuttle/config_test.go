@@ -33,6 +33,7 @@ func Test_Unit_ParseArgs_Unset_Defaults_Success(t *testing.T) {
 	require.Equal(t, "/mirror", prog.opts.MirrorRoot)
 	require.Equal(t, "/real", prog.opts.RealRoot)
 	require.Empty(t, prog.opts.Excludes)
+	require.False(t, prog.opts.Force)
 	require.False(t, prog.opts.Direct)
 	require.False(t, prog.opts.Verify)
 	require.True(t, prog.opts.SkipEmpty)
@@ -58,6 +59,7 @@ func Test_Unit_ParseArgs_All_Success(t *testing.T) {
 		"--mirror=/mirror",
 		"--target=/real",
 		"--exclude=/exclude",
+		"--force",
 		"--direct",
 		"--verify",
 		"--dry-run",
@@ -81,6 +83,7 @@ func Test_Unit_ParseArgs_All_Success(t *testing.T) {
 	require.Equal(t, "/mirror", prog.opts.MirrorRoot)
 	require.Equal(t, "/real", prog.opts.RealRoot)
 	require.Equal(t, "/exclude", prog.opts.Excludes[0])
+	require.True(t, prog.opts.Force)
 	require.True(t, prog.opts.Direct)
 	require.True(t, prog.opts.Verify)
 	require.True(t, prog.opts.SkipEmpty)
@@ -103,6 +106,7 @@ mirror: /mirror
 target: /real
 exclude:
   - /exclude
+force: true
 direct: true
 verify: true
 dry-run: true
@@ -131,6 +135,7 @@ json: true
 	require.Equal(t, "/mirror", prog.opts.MirrorRoot)
 	require.Equal(t, "/real", prog.opts.RealRoot)
 	require.Equal(t, "/exclude", prog.opts.Excludes[0])
+	require.True(t, prog.opts.Force)
 	require.True(t, prog.opts.Direct)
 	require.True(t, prog.opts.Verify)
 	require.True(t, prog.opts.SkipEmpty)
@@ -153,6 +158,7 @@ mirror: /mirror2
 target: /real2
 exclude:
   - /exclude2
+force: false
 direct: false
 verify: false
 dry-run: false
@@ -176,6 +182,7 @@ log-level: invalid
 		"--mirror=/mirror",
 		"--target=/real",
 		"--exclude=/exclude",
+		"--force",
 		"--direct",
 		"--verify",
 		"--slow-mode",
@@ -199,6 +206,7 @@ log-level: invalid
 	require.Equal(t, "/mirror", prog.opts.MirrorRoot)
 	require.Equal(t, "/real", prog.opts.RealRoot)
 	require.Equal(t, "/exclude", prog.opts.Excludes[0])
+	require.True(t, prog.opts.Force)
 	require.True(t, prog.opts.Direct)
 	require.True(t, prog.opts.Verify)
 	require.True(t, prog.opts.SkipEmpty)
@@ -223,6 +231,7 @@ func Test_Unit_ValidateOpts_ValidOptions_Success(t *testing.T) {
 		MirrorRoot:  "/mirror",
 		RealRoot:    "/real",
 		Excludes:    []string{"/exclude", "/exclude2"},
+		Force:       true,
 		Direct:      true,
 		Verify:      true,
 		SkipEmpty:   true,
