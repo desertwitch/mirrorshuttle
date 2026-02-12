@@ -13,6 +13,11 @@ exclude:
   - /real/path/skip-this
   - /real/path/temp
 
+# Overwrite target files if they already exist; use at your own risk.
+#
+# Default: false
+force: false
+
 # Attempt atomic rename operations. If this fails (e.g., across filesystems),
 # fallback to copy and remove.
 #
