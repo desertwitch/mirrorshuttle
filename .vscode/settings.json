@@ -1,7 +1,16 @@
 {
-    "go.lintTool": "golangci-lint",
+    "go.lintTool": "golangci-lint-v2",
     "go.lintFlags": [
-        "--fast"
+    "--path-mode=abs",
+    "--fast-only"
     ],
-    "makefile.configureOnOpen": false
+    "go.formatTool": "custom",
+    "go.alternateTools": {
+    "customFormatter": "golangci-lint-v2"
+    },
+    "go.formatFlags": [
+    "fmt",
+    "--stdin"
+    ],
+    "markdown.extension.toc.updateOnSave": false
 }

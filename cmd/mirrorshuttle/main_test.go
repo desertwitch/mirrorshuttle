@@ -44,6 +44,7 @@ func setupTestProgram(fs afero.Fs, opts *programOptions) (prog *program, stdout 
 
 type flakyFs struct {
 	afero.Fs
+
 	failOnPath string
 }
 
