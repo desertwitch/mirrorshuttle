@@ -948,6 +948,64 @@ func Test_Unit_CopyAndRemove_Success(t *testing.T) {
 	require.Equal(t, "test content", string(content))
 }
 
+// Expectation: The function should preserve file permissions on copy+remove.
+func Test_Unit_CopyAndRemove_PreservePerms_Success(t *testing.T) {
+	t.Parallel()
+
+	fs := setupTestFs()
+	files := map[string]string{
+		"/src/file.txt": "test content",
+	}
+	err := createFiles(fs, files)
+	require.NoError(t, err)
+
+	// Set a distinctive permission on the source file.
+	err = fs.Chmod("/src/file.txt", 0o754)
+	require.NoError(t, err)
+
+	prog, _, _ := setupTestProgram(fs, nil)
+	prog.opts.PreservePerms = true
+
+	_, err = prog.copyAndRemove(t.Context(), "/src/file.txt", "/dst/file.txt")
+	require.NoError(t, err)
+
+	// Verify destination exists with correct content.
+	content, err := afero.ReadFile(fs, "/dst/file.txt")
+	require.NoError(t, err)
+	require.Equal(t, "test content", string(content))
+
+	// Verify permissions were preserved.
+	info, err := fs.Stat("/dst/file.txt")
+	require.NoError(t, err)
+	require.Equal(t, os.FileMode(0o754), info.Mode().Perm())
+}
+
+// Expectation: The function should warn but not fail when ownership can't be restored.
+func Test_Unit_CopyAndRemove_PreservePerms_ChownUnsupported_Success(t *testing.T) {
+	t.Parallel()
+
+	fs := setupTestFs()
+	files := map[string]string{
+		"/src/file.txt": "test content",
+	}
+	err := createFiles(fs, files)
+	require.NoError(t, err)
+
+	prog, _, stderr := setupTestProgram(fs, nil)
+	prog.opts.PreservePerms = true
+
+	_, err = prog.copyAndRemove(t.Context(), "/src/file.txt", "/dst/file.txt")
+	require.NoError(t, err)
+
+	// Verify the file was still moved successfully despite chown issues.
+	content, err := afero.ReadFile(fs, "/dst/file.txt")
+	require.NoError(t, err)
+	require.Equal(t, "test content", string(content))
+
+	// MemMapFs doesn't provide syscall.Stat_t, so we expect a warning.
+	require.Contains(t, stderr.String(), "ownership")
+}
+
 // Expectation: The function should copy, remove and verify the respective file.
 func Test_Unit_CopyAndRemove_Verify_Success(t *testing.T) {
 	t.Parallel()

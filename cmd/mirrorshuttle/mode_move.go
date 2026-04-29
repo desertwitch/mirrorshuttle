@@ -9,6 +9,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"syscall"
 
 	"github.com/spf13/afero"
 )
@@ -183,6 +184,11 @@ func (prog *program) copyAndRemove(ctx context.Context, src string, dst string) 
 	}
 	defer in.Close()
 
+	srcInfo, err := in.Stat()
+	if err != nil {
+		return retHashes, fmt.Errorf("failed to stat: %q (%w)", src, err)
+	}
+
 	out, err := prog.fsys.Create(workingFile)
 	if err != nil {
 		return retHashes, fmt.Errorf("failed to open: %q (%w)", workingFile, err)
@@ -242,6 +248,23 @@ func (prog *program) copyAndRemove(ctx context.Context, src string, dst string) 
 	}
 
 	workingFile = dst // We work on the actual destination file now.
+
+	if prog.opts.PreservePerms {
+		if err := prog.fsys.Chmod(workingFile, srcInfo.Mode()); err != nil {
+			prog.log.Warn("failed to restore permissions",
+				"path", workingFile, "error", err)
+		}
+		st, ok := srcInfo.Sys().(*syscall.Stat_t)
+		if !ok {
+			prog.log.Warn("failed to restore ownership",
+				"path", workingFile, "error", "failed to assert syscall stat_t")
+		} else {
+			if err := prog.fsys.Chown(workingFile, int(st.Uid), int(st.Gid)); err != nil {
+				prog.log.Warn("failed to restore ownership",
+					"path", workingFile, "error", err)
+			}
+		}
+	}
 
 	if prog.opts.Verify {
 		verifyHasher := sha256.New()

@@ -34,6 +34,7 @@ func Test_Unit_ParseArgs_Unset_Defaults_Success(t *testing.T) {
 	require.Equal(t, "/real", prog.opts.RealRoot)
 	require.Empty(t, prog.opts.Excludes)
 	require.False(t, prog.opts.Force)
+	require.False(t, prog.opts.PreservePerms)
 	require.False(t, prog.opts.Direct)
 	require.False(t, prog.opts.Verify)
 	require.True(t, prog.opts.SkipEmpty)
@@ -107,6 +108,7 @@ target: /real
 exclude:
   - /exclude
 force: true
+preserve-perms: true
 direct: true
 verify: true
 dry-run: true
@@ -136,6 +138,7 @@ json: true
 	require.Equal(t, "/real", prog.opts.RealRoot)
 	require.Equal(t, "/exclude", prog.opts.Excludes[0])
 	require.True(t, prog.opts.Force)
+	require.True(t, prog.opts.PreservePerms)
 	require.True(t, prog.opts.Direct)
 	require.True(t, prog.opts.Verify)
 	require.True(t, prog.opts.SkipEmpty)
@@ -159,6 +162,7 @@ target: /real2
 exclude:
   - /exclude2
 force: false
+preserve-perms: false
 direct: false
 verify: false
 dry-run: false
@@ -183,6 +187,7 @@ log-level: invalid
 		"--target=/real",
 		"--exclude=/exclude",
 		"--force",
+		"--preserve-perms",
 		"--direct",
 		"--verify",
 		"--slow-mode",
@@ -207,6 +212,7 @@ log-level: invalid
 	require.Equal(t, "/real", prog.opts.RealRoot)
 	require.Equal(t, "/exclude", prog.opts.Excludes[0])
 	require.True(t, prog.opts.Force)
+	require.True(t, prog.opts.PreservePerms)
 	require.True(t, prog.opts.Direct)
 	require.True(t, prog.opts.Verify)
 	require.True(t, prog.opts.SkipEmpty)

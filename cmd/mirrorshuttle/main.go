@@ -83,6 +83,11 @@ system locations; ensure they are executable by running `chmod +x` before use.
 
 		Default: false
 
+	--preserve-perms
+		Optional. Preserve ownership and permissions where possible.
+
+		Default: false
+
 	--direct
 		Optional. Attempt atomic rename operations. If this fails (e.g., across
 		filesystems), fallback to copy and remove.
@@ -166,6 +171,7 @@ system locations; ensure they are executable by running `chmod +x` before use.
 	  - /real/path/skip-this
 	  - /real/path/temp
 	force: false
+	preserve-perms: false
 	direct: false
 	verify: false
 	skip-empty: true
@@ -351,21 +357,22 @@ type programState struct {
 }
 
 type programOptions struct {
-	Mode        string     `yaml:"-"`
-	MirrorRoot  string     `yaml:"mirror"`
-	RealRoot    string     `yaml:"target"`
-	Excludes    excludeArg `yaml:"exclude"`
-	Force       bool       `yaml:"force"`
-	Direct      bool       `yaml:"direct"`
-	Verify      bool       `yaml:"verify"`
-	SkipEmpty   bool       `yaml:"skip-empty"`
-	RemoveEmpty bool       `yaml:"remove-empty"`
-	SkipFailed  bool       `yaml:"skip-failed"`
-	SlowMode    bool       `yaml:"slow-mode"`
-	InitDepth   int        `yaml:"init-depth"`
-	DryRun      bool       `yaml:"dry-run"`
-	LogLevel    string     `yaml:"log-level"`
-	JSON        bool       `yaml:"json"`
+	Mode          string     `yaml:"-"`
+	MirrorRoot    string     `yaml:"mirror"`
+	RealRoot      string     `yaml:"target"`
+	Excludes      excludeArg `yaml:"exclude"`
+	Force         bool       `yaml:"force"`
+	PreservePerms bool       `yaml:"preserve-perms"`
+	Direct        bool       `yaml:"direct"`
+	Verify        bool       `yaml:"verify"`
+	SkipEmpty     bool       `yaml:"skip-empty"`
+	RemoveEmpty   bool       `yaml:"remove-empty"`
+	SkipFailed    bool       `yaml:"skip-failed"`
+	SlowMode      bool       `yaml:"slow-mode"`
+	InitDepth     int        `yaml:"init-depth"`
+	DryRun        bool       `yaml:"dry-run"`
+	LogLevel      string     `yaml:"log-level"`
+	JSON          bool       `yaml:"json"`
 }
 
 func main() {
