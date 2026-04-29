@@ -28,8 +28,8 @@ func (prog *program) parseArgs(cliArgs []string) error {
 	prog.flags.SetOutput(prog.stderr)
 	prog.flags.Usage = func() {
 		fmt.Fprintf(prog.stderr, "usage: %q --mode=init|move --mirror=ABSPATH --target=ABSPATH\n", cliArgs[0])
-		fmt.Fprintf(prog.stderr, "\t[--exclude=ABSPATH] [--exclude=ABSPATH] [--force] [--direct] [--verify] [--skip-empty] [--remove-empty]\n")
-		fmt.Fprintf(prog.stderr, "\t[--skip-failed=false] [--slow-mode] [--init-depth=NUM] [--dry-run] [--log-level=debug|info|warn|error] [--json]\n\n")
+		fmt.Fprintf(prog.stderr, "\t[--exclude=ABSPATH] [--exclude=ABSPATH] [--force] [--preserve-perms] [--direct] [--verify] [--skip-empty]\n")
+		fmt.Fprintf(prog.stderr, "\t[--remove-empty] [--skip-failed=false] [--slow-mode] [--init-depth=NUM] [--dry-run] [--log-level=debug|info|warn|error] [--json]\n\n")
 		prog.flags.PrintDefaults()
 	}
 
@@ -39,6 +39,7 @@ func (prog *program) parseArgs(cliArgs []string) error {
 	prog.flags.StringVar(&prog.opts.RealRoot, "target", "", "absolute path to the real structure to mirror; files will be moved *to* here")
 	prog.flags.Var(&prog.opts.Excludes, "exclude", "absolute path to exclude; can be repeated multiple times")
 	prog.flags.BoolVar(&prog.opts.Force, "force", false, "overwrite target files if they already exist; use at your own risk")
+	prog.flags.BoolVar(&prog.opts.PreservePerms, "preserve-perms", false, "preserve ownership and permissions where possible")
 	prog.flags.BoolVar(&prog.opts.Direct, "direct", false, "use atomic rename when possible; fallback to copy and remove if it fails or crosses filesystems")
 	prog.flags.BoolVar(&prog.opts.Verify, "verify", false, "verify again the hash of a target file after moving it; requires an extra full read of the file")
 	prog.flags.BoolVar(&prog.opts.SkipEmpty, "skip-empty", true, "do not move empty directories; avoids accidental re-creations of (target) deletions")
@@ -88,6 +89,9 @@ func (prog *program) parseArgs(cliArgs []string) error {
 	}
 	if !setFlags["force"] {
 		prog.opts.Force = yamlOpts.Force
+	}
+	if !setFlags["preserve-perms"] {
+		prog.opts.PreservePerms = yamlOpts.PreservePerms
 	}
 	if !setFlags["direct"] {
 		prog.opts.Direct = yamlOpts.Direct

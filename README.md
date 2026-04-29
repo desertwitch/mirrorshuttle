@@ -107,6 +107,11 @@ system locations; ensure they are executable by running `chmod +x` before use.
 
         Default: false
 
+    --preserve-perms
+        Optional. Preserve ownership and permissions where possible.
+
+        Default: false
+
     --direct
         Optional. Attempt atomic rename operations. If this fails (e.g., across
         filesystems), fallback to copy and remove.
@@ -190,6 +195,7 @@ system locations; ensure they are executable by running `chmod +x` before use.
       - /real/path/skip-this
       - /real/path/temp
     force: false
+    preserve-perms: false
     direct: false
     verify: false
     skip-empty: true

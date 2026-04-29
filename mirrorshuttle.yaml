@@ -18,6 +18,11 @@ exclude:
 # Default: false
 force: false
 
+# Preserve ownership and permissions where possible.
+#
+# Default: false
+preserve-perms: false
+
 # Attempt atomic rename operations. If this fails (e.g., across filesystems),
 # fallback to copy and remove.
 #
